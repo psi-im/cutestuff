@@ -352,6 +352,8 @@ public:
 
 	QString rhost;
 	int rport;
+
+	int pending;
 };
 
 SocksClient::SocksClient(QObject *parent)
@@ -400,6 +402,7 @@ void SocksClient::reset(bool clear)
 	d->recvBuf.resize(0);
 	d->active = false;
 	d->waiting = false;
+	d->pending = 0;
 }
 
 bool SocksClient::isIncoming() const
@@ -444,6 +447,12 @@ void SocksClient::close()
 		reset();
 }
 
+void SocksClient::writeData(const QByteArray &buf)
+{
+	d->pending += buf.size();
+	d->sock.write(buf);
+}
+
 void SocksClient::write(const QByteArray &buf)
 {
 	if(d->active)
@@ -475,7 +484,7 @@ void SocksClient::sock_connected()
 #endif
 
 	d->step = StepVersion;
-	d->sock.write(spc_set_version());
+	writeData(spc_set_version());
 }
 
 void SocksClient::sock_connectionClosed()
@@ -569,7 +578,7 @@ void SocksClient::processOutgoing(const QByteArray &block)
 #ifdef PROX_DEBUG
 				fprintf(stderr, "SocksClient: Authenticating [Username] ...\n");
 #endif
-				d->sock.write(spc_set_authUsername(d->user.latin1(), d->pass.latin1()));
+				writeData(spc_set_authUsername(d->user.latin1(), d->pass.latin1()));
 			}
 		}
 	}
@@ -646,13 +655,22 @@ void SocksClient::do_request()
 	fprintf(stderr, "SocksClient: Requesting ...\n");
 #endif
 	d->step = StepRequest;
-	d->sock.write(sp_set_connectRequest(d->real_host, d->real_port));
+	writeData(sp_set_connectRequest(d->real_host, d->real_port));
 }
 
 void SocksClient::sock_bytesWritten(int x)
 {
-	if(d->active)
-		bytesWritten(x);
+	int bytes = x;
+	if(d->pending >= bytes) {
+		d->pending -= bytes;
+		bytes = 0;
+	}
+	else {
+		bytes -= d->pending;
+		d->pending = 0;
+	}
+	if(bytes > 0)
+		bytesWritten(bytes);
 }
 
 void SocksClient::sock_error(int x)
@@ -776,7 +794,7 @@ void SocksClient::chooseMethod(int method)
 
 	// version response
 	d->waiting = false;
-	d->sock.write(sps_set_version(c));
+	writeData(sps_set_version(c));
 	continueIncoming();
 }
 
@@ -790,7 +808,7 @@ void SocksClient::authGrant(bool b)
 
 	// auth response
 	d->waiting = false;
-	d->sock.write(sps_set_authUsername(b));
+	writeData(sps_set_authUsername(b));
 	if(!b) {
 		reset(true);
 		return;
@@ -810,7 +828,7 @@ void SocksClient::requestGrant(bool b)
 		cmd1 = 0x00; // success
 	else
 		cmd1 = 0x04; // host not found
-	d->sock.write(sp_set_connectRequest(d->rhost, d->rport, cmd1));
+	writeData(sp_set_connectRequest(d->rhost, d->rport, cmd1));
 	if(!b) {
 		reset(true);
 		return;

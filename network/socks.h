@@ -84,6 +84,7 @@ private:
 	void processOutgoing(const QByteArray &);
 	void processIncoming(const QByteArray &);
 	void continueIncoming();
+	void writeData(const QByteArray &a);
 };
 
 class SocksServer : public QObject
