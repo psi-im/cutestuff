@@ -23,10 +23,10 @@
 #include<qstringlist.h>
 #include<qurl.h>
 #include<qtimer.h>
+#include<qca.h>
+#include<stdlib.h>
 #include"bsocket.h"
 #include"base64.h"
-#include"sha1.h"
-#include"qrandom.h"
 
 #ifdef PROX_DEBUG
 #include<stdio.h>
@@ -37,8 +37,16 @@
 #endif
 
 #ifdef CS_NAMESPACE
-using namespace CS_NAMESPACE;
+namespace CS_NAMESPACE {
 #endif
+
+static QByteArray randomArray(int size)
+{
+	QByteArray a(size);
+	for(int n = 0; n < size; ++n)
+		a[n] = (char)(256.0*rand()/(RAND_MAX+1.0));
+	return a;
+}
 
 //----------------------------------------------------------------------------
 // HttpPoll
@@ -48,7 +56,7 @@ static QString hpk(int n, const QString &s)
 	if(n == 0)
 		return s;
 	else
-		return Base64::arrayToString( SHA1::hashString( QCString(hpk(n - 1, s).latin1()) ) );
+		return Base64::arrayToString( QCA::SHA1::hash( QCString(hpk(n - 1, s).latin1()) ) );
 }
 
 class HttpPoll::Private
@@ -333,7 +341,7 @@ void HttpPoll::resetKey()
 #ifdef PROX_DEBUG
 	fprintf(stderr, "HttpPoll: reset key!\n");
 #endif
-	QByteArray a = QRandom::randomArray(64);
+	QByteArray a = randomArray(64);
 	QString str = QString::fromLatin1(a.data(), a.size());
 
 	d->key_n = 256;
@@ -633,3 +641,7 @@ void HttpProxyPost::sock_error(int x)
 	else if(x == BSocket::ErrRead)
 		error(ErrProxyNeg);
 }
+
+#ifdef CS_NAMESPACE
+}
+#endif

@@ -23,6 +23,10 @@
 
 #include<qstring.h>
 
+#ifdef CS_NAMESPACE
+namespace CS_NAMESPACE {
+#endif
+
 class Base64
 {
 public:
@@ -32,5 +36,9 @@ public:
 	static QByteArray stringToArray(const QString &);
 	static QString encodeString(const QString &);
 };
+
+#ifdef CS_NAMESPACE
+}
+#endif
 
 #endif

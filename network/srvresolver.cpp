@@ -25,6 +25,10 @@
 #include<qdns.h>
 #include"ndns.h"
 
+#ifdef CS_NAMESPACE
+namespace CS_NAMESPACE {
+#endif
+
 static void sortSRVList(QValueList<QDns::Server> &list)
 {
 	QValueList<QDns::Server> tmp = list;
@@ -234,3 +238,7 @@ void SrvResolver::t_timeout()
 	stop();
 	resultsReady();
 }
+
+#ifdef CS_NAMESPACE
+}
+#endif

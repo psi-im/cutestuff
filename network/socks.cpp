@@ -33,7 +33,7 @@
 #endif
 
 #ifdef CS_NAMESPACE
-using namespace CS_NAMESPACE;
+namespace CS_NAMESPACE {
 #endif
 
 //----------------------------------------------------------------------------
@@ -887,3 +887,7 @@ void SocksServer::connectionError()
 	d->incomingConns.removeRef(c);
 	c->deleteLater();
 }
+
+#ifdef CS_NAMESPACE
+}
+#endif

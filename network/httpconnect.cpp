@@ -29,7 +29,7 @@
 #endif
 
 #ifdef CS_NAMESPACE
-using namespace CS_NAMESPACE;
+namespace CS_NAMESPACE {
 #endif
 
 static QString extractLine(QByteArray *buf, bool *found)
@@ -359,3 +359,7 @@ void HttpConnect::sock_error(int x)
 			error(ErrProxyNeg);
 	}
 }
+
+#ifdef CS_NAMESPACE
+}
+#endif

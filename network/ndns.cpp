@@ -64,6 +64,10 @@
 #include<windows.h>
 #endif
 
+#ifdef CS_NAMESPACE
+namespace CS_NAMESPACE {
+#endif
+
 //! \if _hide_doc_
 class NDnsWorkerEvent : public QCustomEvent
 {
@@ -71,10 +75,7 @@ public:
 	enum Type { WorkerEvent = QEvent::User + 100 };
 	NDnsWorkerEvent(NDnsWorker *);
 
-	NDnsWorker *worker() const;
-
-private:
-	NDnsWorker *p;
+	NDnsWorker *worker;
 };
 
 class NDnsWorker : public QThread
@@ -198,9 +199,9 @@ bool NDnsManager::event(QEvent *e)
 {
 	if((int)e->type() == (int)NDnsWorkerEvent::WorkerEvent) {
 		NDnsWorkerEvent *we = static_cast<NDnsWorkerEvent*>(e);
-		we->worker()->wait(); // ensure that the thread is terminated
+		we->worker->wait(); // ensure that the thread is terminated
 
-		Item *i = d->find(we->worker());
+		Item *i = d->find(we->worker);
 		if(!i) {
 			// should NOT happen
 			return true;
@@ -310,15 +311,10 @@ void NDns::finished(const QHostAddress &a)
 //----------------------------------------------------------------------------
 // NDnsWorkerEvent
 //----------------------------------------------------------------------------
-NDnsWorkerEvent::NDnsWorkerEvent(NDnsWorker *_p)
+NDnsWorkerEvent::NDnsWorkerEvent(NDnsWorker *p)
 :QCustomEvent(WorkerEvent)
 {
-	p = _p;
-}
-
-NDnsWorker *NDnsWorkerEvent::worker() const
-{
-	return p;
+	worker = p;
 }
 
 //----------------------------------------------------------------------------
@@ -365,3 +361,7 @@ void NDnsWorker::run()
 
 	QApplication::postEvent(par, new NDnsWorkerEvent(this));
 }
+
+#ifdef CS_NAMESPACE
+}
+#endif

@@ -21,7 +21,7 @@
 #include"bytestream.h"
 
 #ifdef CS_NAMESPACE
-using namespace CS_NAMESPACE;
+namespace CS_NAMESPACE {
 #endif
 
 //! \class ByteStream bytestream.h
@@ -265,3 +265,7 @@ QByteArray ByteStream::takeArray(QByteArray *from, int size, bool del)
 //! \fn void ByteStream::error(int code)
 //! This signal is emitted when an error occurs in the stream.  The reason for
 //! error is indicated by \a code.
+
+#ifdef CS_NAMESPACE
+}
+#endif

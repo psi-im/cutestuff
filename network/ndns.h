@@ -27,6 +27,10 @@
 #include<qmutex.h>
 #include<qhostaddress.h>
 
+#ifdef CS_NAMESPACE
+namespace CS_NAMESPACE {
+#endif
+
 class NDnsWorker;
 class NDnsManager;
 
@@ -80,5 +84,9 @@ private:
 	bool isBusy(const NDns *self) const;
 	void tryDestroy();
 };
+
+#ifdef CS_NAMESPACE
+}
+#endif
 
 #endif

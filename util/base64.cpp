@@ -20,6 +20,10 @@
 
 #include"base64.h"
 
+#ifdef CS_NAMESPACE
+namespace CS_NAMESPACE {
+#endif
+
 //! \class Base64 base64.h
 //! \brief Base64 conversion functions.
 //!
@@ -115,10 +119,10 @@ QByteArray Base64::decode(const QByteArray &s)
 	c = d = 0;
 
 	for( i = 0; i < len; i += 4 ) {
-		a = tbl[s[i]];
-		b = tbl[s[i + 1]];
-		c = tbl[s[i + 2]];
-		d = tbl[s[i + 3]];
+		a = tbl[(int)s[i]];
+		b = tbl[(int)s[i + 1]];
+		c = tbl[(int)s[i + 2]];
+		d = tbl[(int)s[i + 3]];
 		if((a == 64 || b == 64) || (a < 0 || b < 0 || c < 0 || d < 0)) {
 			p.resize(0);
 			return p;
@@ -171,3 +175,7 @@ QString Base64::encodeString(const QString &s)
 	memcpy(b.data(), c.data(), len);
 	return arrayToString(b);
 }
+
+#ifdef CS_NAMESPACE
+}
+#endif

@@ -31,7 +31,7 @@
 #endif
 
 #ifdef CS_NAMESPACE
-using namespace CS_NAMESPACE;
+namespace CS_NAMESPACE {
 #endif
 
 class BSocket::Private
@@ -301,3 +301,7 @@ void BSocket::qs_error(int x)
 	else if(x == QSocket::ErrSocketRead)
 		error(ErrRead);
 }
+
+#ifdef CS_NAMESPACE
+}
+#endif

@@ -23,6 +23,10 @@
 
 #include<qserversocket.h>
 
+#ifdef CS_NAMESPACE
+namespace CS_NAMESPACE {
+#endif
+
 class ServSock : public QObject
 {
 	Q_OBJECT
@@ -59,5 +63,9 @@ protected:
 	// reimplemented
 	void newConnection(int);
 };
+
+#ifdef CS_NAMESPACE
+}
+#endif
 
 #endif
