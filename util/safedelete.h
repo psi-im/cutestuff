@@ -1,6 +1,7 @@
 #ifndef SAFEDELETE_H
 #define SAFEDELETE_H
 
+#include<qobject.h>
 #include<qobjectlist.h>
 
 class SafeDelete;
@@ -25,6 +26,9 @@ public:
 
 	void deleteLater(QObject *o);
 
+	// same as QObject::deleteLater()
+	static void deleteSingle(QObject *o);
+
 private:
 	QObjectList list;
 	void deleteAll();
@@ -32,6 +36,25 @@ private:
 	friend class SafeDeleteLock;
 	SafeDeleteLock *lock;
 	void unlock();
+};
+
+class SafeDeleteLater : public QObject
+{
+	Q_OBJECT
+public:
+	static SafeDeleteLater *ensureExists();
+	void deleteItLater(QObject *o);
+
+private slots:
+	void explode();
+
+private:
+	SafeDeleteLater();
+	~SafeDeleteLater();
+
+	QObjectList list;
+	friend class SafeDelete;
+	static SafeDeleteLater *self;
 };
 
 #endif
