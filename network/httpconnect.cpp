@@ -115,7 +115,7 @@ HttpConnect::~HttpConnect()
 
 void HttpConnect::reset(bool clear)
 {
-	if(d->sock.isOpen())
+	if(d->sock.state() != BSocket::Idle)
 		d->sock.close();
 	if(clear) {
 		clearReadBuffer();
@@ -208,7 +208,8 @@ void HttpConnect::sock_connected()
 		QString str = d->user + ':' + d->pass;
 		s += QString("Proxy-Authorization: Basic ") + Base64::encodeString(str) + "\r\n";
 	}
-	s += QString("Proxy-Connection: Keep-Alive\r\nPragma: no-cache\r\n");
+	s += "Proxy-Connection: Keep-Alive\r\n";
+	s += "Pragma: no-cache\r\n";
 	s += "\r\n";
 
 	QCString cs = s.utf8();
@@ -241,9 +242,7 @@ void HttpConnect::sock_readyRead()
 	QByteArray block = d->sock.read();
 
 	if(!d->active) {
-		int oldsize = d->recvBuf.size();
-		d->recvBuf.resize(oldsize + block.size());
-		memcpy(d->recvBuf.data() + oldsize, block.data(), block.size());
+		ByteStream::appendArray(&d->recvBuf, block);
 
 		if(d->inHeader) {
 			// grab available lines
@@ -273,6 +272,7 @@ void HttpConnect::sock_readyRead()
 #endif
 					reset(true);
 					error(ErrProxyNeg);
+					return;
 				}
 				else {
 #ifdef PROX_DEBUG
@@ -324,6 +324,7 @@ void HttpConnect::sock_readyRead()
 #endif
 					reset(true);
 					error(err);
+					return;
 				}
 			}
 		}

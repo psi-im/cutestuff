@@ -271,7 +271,7 @@ SocksClient::~SocksClient()
 
 void SocksClient::reset(bool clear)
 {
-	if(d->sock.isOpen())
+	if(d->sock.state() != BSocket::Idle)
 		d->sock.close();
 	if(clear)
 		clearReadBuffer();

@@ -1,13 +1,15 @@
 code:
+  httppoll
   socksclient: GSS-API
   sasl: security flags?
+  qssl
   securestream
-  merge sha1
-  httppoll
   idle
+  import misha's iconset code
 
 port:
   win32: bconsole
+  mac: globalaccel
 
 document:
   iconset

@@ -5,8 +5,7 @@
 #include"network/bsocket.h"
 #include"network/httpconnect.h"
 #include"network/socksclient.h"
-#include"sasl/qsasl.h"
-#include"util/base64.h"
+#include"network/httppoll.h"
 
 #include<stdio.h>
 
@@ -18,7 +17,6 @@ public:
 	ByteStream *bs;
 	BConsole *c;
 	int mode;
-	QSASL sasl;
 };
 
 App::App(int mode, const QString &host, int port, const QString &serv, const QString &proxy_host, int proxy_port, const QString &proxy_user, const QString &proxy_pass)
@@ -66,18 +64,16 @@ App::App(int mode, const QString &host, int port, const QString &serv, const QSt
 			s->setAuth(proxy_user, proxy_pass);
 		s->connectToHost(proxy_host, proxy_port, host, port);
 	}
-
-	/*d->sasl.setServiceHost("jabber", "cataclysm.cx");
-	d->sasl.setUserPass("rob", "");
-	QStringList list;
-	list += "DIGEST-MD5";
-	list += "PLAIN";
-	d->sasl.begin(list);
-	QString str =
-	  "cmVhbG09ImNhdGFjbHlzbS5jeCIsbm9uY2U9Ik9BNk1HOXRFUUdtMmhoIi"
-	  "xxb3A9ImF1dGgiLGNoYXJzZXQ9dXRmLTgsYWxnb3JpdGhtPW1kNS1zZXNz";
-	QByteArray a = Base64::stringToArray(str);
-	d->sasl.putChallenge(a);*/
+	else if(mode == 4) {
+		HttpPoll *s = new HttpPoll;
+		d->bs = s;
+		connect(s, SIGNAL(connected()), SLOT(st_connected()));
+		connect(s, SIGNAL(error(int)), SLOT(st_error(int)));
+		fprintf(stderr, "adconn: Connecting to %s via %s:%d (poll)\n", host.latin1(), proxy_host.latin1(), proxy_port);
+		if(!proxy_user.isEmpty())
+			s->setAuth(proxy_user, proxy_pass);
+		s->connectToHost(proxy_host, proxy_port, host);
+	}
 }
 
 App::~App()
@@ -142,6 +138,7 @@ int main(int argc, char **argv)
 	if(argc < 2) {
 		printf("usage: adconn [options] [host]\n");
 		printf("   [host] must be in the form 'host:port' or 'domain#server'\n");
+		printf("   When using proxy 'poll', [host] must be a URL\n");
 		printf("   Options:\n");
 		printf("     --proxy=[https|poll|socks],host:port\n");
 		printf("     --proxy-auth=user,pass\n");
@@ -184,7 +181,8 @@ int main(int argc, char **argv)
 				QString s = args[1];
 				int n = s.find(':');
 				if(n == -1) {
-					// TODO: error
+					printf("invalid host:port for proxy\n");
+					return 0;
 				}
 				proxy_host = s.mid(0, n);
 				++n;
@@ -194,8 +192,7 @@ int main(int argc, char **argv)
 					mode = 2;
 				}
 				else if(type == "poll") {
-					printf("proxy 'poll' not supported yet.\n");
-					return 0;
+					mode = 4;
 				}
 				else if(type == "socks") {
 					mode = 3;
@@ -217,35 +214,43 @@ int main(int argc, char **argv)
 	}
 
 	if(argc < 2) {
-		printf("No host specified!\n");
+		if(mode == 4)
+			printf("No URL specified\n");
+		else
+			printf("No host specified!\n");
 		return 0;
 	}
 
 	QString host, serv;
 	int port=0;
 
-	QString s = argv[1];
-	int n = s.find(':');
-	if(n == -1) {
-		n = s.find('#');
-		if(n == -1) {
-			printf("No port or server specified!\n");
-			return 0;
-		}
-
-		if(mode >= 2) {
-			printf("Can't use domain#server with proxy!\n");
-			return 0;
-		}
-		host = s.mid(0, n);
-		++n;
-		serv = s.mid(n);
-		mode = 1;
+	if(mode == 4) {
+		host = argv[1];
 	}
 	else {
-		host = s.mid(0, n);
-		++n;
-		port = s.mid(n).toInt();
+		QString s = argv[1];
+		int n = s.find(':');
+		if(n == -1) {
+			n = s.find('#');
+			if(n == -1) {
+				printf("No port or server specified!\n");
+				return 0;
+			}
+
+			if(mode >= 2) {
+				printf("Can't use domain#server with proxy!\n");
+				return 0;
+			}
+			host = s.mid(0, n);
+			++n;
+			serv = s.mid(n);
+			mode = 1;
+		}
+		else {
+			host = s.mid(0, n);
+			++n;
+			port = s.mid(n).toInt();
+		}
 	}
 
 	App *a = new App(mode, host, port, serv, proxy_host, proxy_port, proxy_user, proxy_pass);
