@@ -100,8 +100,8 @@ private:
 //----------------------------------------------------------------------------
 #ifndef HAVE_GETHOSTBYNAME_R
 static QMutex *workerMutex = 0;
-#endif
 static QMutex *workerCancelled = 0;
+#endif
 static NDnsManager *man = 0;
 
 class NDnsManager::Item
@@ -139,8 +139,10 @@ public:
 
 NDnsManager::NDnsManager()
 {
+#ifndef HAVE_GETHOSTBYNAME_R
 	workerMutex = new QMutex;
 	workerCancelled = new QMutex;
+#endif
 
 	d = new Private;
 	d->list.setAutoDelete(true);
@@ -150,10 +152,12 @@ NDnsManager::~NDnsManager()
 {
 	delete d;
 
+#ifndef HAVE_GETHOSTBYNAME_R
 	delete workerMutex;
 	workerMutex = 0;
 	delete workerCancelled;
 	workerCancelled = 0;
+#endif
 }
 
 void NDnsManager::resolve(NDns *self, const QString &name)
@@ -174,10 +178,12 @@ void NDnsManager::stop(NDns *self)
 	// disassociate
 	i->ndns = 0;
 
+#ifndef HAVE_GETHOSTBYNAME_R
 	// cancel
 	workerCancelled->lock();
 	i->worker->cancelled = true;
 	workerCancelled->unlock();
+#endif
 }
 
 bool NDnsManager::isBusy(const NDns *self) const
