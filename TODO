@@ -1,6 +1,6 @@
 code:
   socksclient: GSS-API
-  sasl encryption??
+  sasl: security flags?
   securestream
   merge sha1
   httppoll
