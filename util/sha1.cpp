@@ -184,7 +184,7 @@ QString SHA1::digest(const QString &in)
 	QString out;
 	for(int n = 0; n < (int)a.size(); ++n) {
 		QString str;
-		str.sprintf("%02x", a[n]);
+		str.sprintf("%02x", (uchar)a[n]);
 		out.append(str);
 	}
 
