@@ -24,6 +24,7 @@
 #include<qstringlist.h>
 #include<qptrlist.h>
 #include<qtimer.h>
+#include<qguardedptr.h>
 
 #ifdef Q_OS_UNIX
 #include<sys/types.h>
@@ -624,7 +625,11 @@ void SocksClient::processOutgoing(const QByteArray &block)
 			fprintf(stderr, "SocksClient: client << Success >>\n");
 #endif
 			d->active = true;
+
+			QGuardedPtr<QObject> self = this;
 			connected();
+			if(!self)
+				return;
 
 			if(!d->recvBuf.isEmpty()) {
 				appendRead(d->recvBuf);
