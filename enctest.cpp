@@ -24,9 +24,11 @@ int main()
 	order.appendChild(e);
 	printf("---- Original\n%s----\n\n", elemToString(order).data());
 
-	Cipher::Key key1 = Cipher::generateKey(Cipher::AES_256);
+	Cipher::Type mainKeyType = Cipher::AES_256;
+	Cipher::Type subKeyType = Cipher::AES_256;
 
-	Cipher::Key key = Cipher::generateKey(Cipher::AES_256);
+	Cipher::Key key1 = Cipher::generateKey(mainKeyType);
+	Cipher::Key key = Cipher::generateKey(subKeyType);
 	printf("Key: { ");
 	for(int n = 0; n < (int)key.data().size(); ++n)
 		printf("%02x", (unsigned char)key.data()[n]);
@@ -36,8 +38,14 @@ int main()
 	dat.encryptKey(key, key1);
 	QDomElement encKey = dat.toXml(&doc);
 
-	printf("---- Encrypted Key\n%s----\n\n", elemToString(encKey).data());
+	//printf("---- Encrypted Key\n%s----\n\n", elemToString(encKey).data());
 
+	XmlEnc::KeyInfo ki;
+	ki.setName("My Key");
+	//ki.attachEncryptedKey(encKey);
+	ki.setValue(key.data());
+
+	dat.setKeyInfo(ki);
 	dat.encryptElement(e, key);
 	QDomElement enc = dat.toXml(&doc);
 	order.replaceChild(enc, e);
@@ -46,7 +54,11 @@ int main()
 	XmlEnc::Encrypted de;
 	if(!de.fromXml(encKey))
 		printf("Error: could not read encrypted xml!\n");
-	Cipher::Key realKey = de.decryptKey(key1);
+	QByteArray r = de.decryptKey(key1);
+
+	Cipher::Key realKey;
+	realKey.setData(r);
+	realKey.setType(subKeyType);
 
 	if(!de.fromXml(enc))
 		printf("Error: could not read encrypted xml!\n");

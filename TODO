@@ -1,12 +1,14 @@
 test:
   httppoll
   sasl
+  xmlenc
 
 code:
-  cipher: switch to EVP_EncryptInit_ex ?
-  xmlenc
+  cipher: generate random keys (right now it is all static)
+  xmlenc: RSA keys
   qssl: server support, certificate information, hostname verify?
   securestream: wrap QSSLFilter as ByteStream
+  httppoll: use random keys
   idle
   import misha's iconset code
 
