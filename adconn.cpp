@@ -60,7 +60,7 @@ App::~App()
 
 void App::st_connected()
 {
-	printf("adconn: Connected\n");
+	fprintf(stderr, "adconn: Connected\n");
 }
 
 void App::st_connectionClosed()
