@@ -434,6 +434,10 @@ void SocksClient::connectToHost(const QString &proxyHost, int proxyPort, const Q
 	d->sock.connectToHost(d->host, d->port);
 }
 
+void SocksClient::udpAssociate(const QString &proxyHost, int proxyPort)
+{
+}
+
 bool SocksClient::isOpen() const
 {
 	return d->active;
@@ -771,7 +775,7 @@ void SocksClient::continueIncoming()
 			else
 				d->rhost = s.addr.toString();
 			d->rport = s.port;
-			incomingRequest(d->rhost, d->rport);
+			incomingConnectRequest(d->rhost, d->rport);
 		}
 	}
 }
@@ -815,7 +819,7 @@ void SocksClient::authGrant(bool b)
 	continueIncoming();
 }
 
-void SocksClient::requestGrant(bool b)
+void SocksClient::requestDeny()
 {
 	if(d->step != StepRequest || !d->waiting)
 		return;
@@ -823,15 +827,28 @@ void SocksClient::requestGrant(bool b)
 	// request response
 	d->waiting = false;
 	unsigned char cmd1;
-	if(b)
-		cmd1 = 0x00; // success
-	else
-		cmd1 = 0x04; // host not found
+	cmd1 = 0x04; // host not found
 	writeData(sp_set_connectRequest(d->rhost, d->rport, cmd1));
-	if(!b) {
-		reset(true);
+	reset(true);
+}
+
+void SocksClient::grantConnect()
+{
+	if(d->step != StepRequest || !d->waiting)
 		return;
-	}
+
+	// request response
+	d->waiting = false;
+	unsigned char cmd1;
+	//if(b)
+		cmd1 = 0x00; // success
+	//else
+	//	cmd1 = 0x04; // host not found
+	writeData(sp_set_connectRequest(d->rhost, d->rport, cmd1));
+	//if(!b) {
+	//	reset(true);
+	//	return;
+	//}
 	d->active = true;
 #ifdef PROX_DEBUG
 	fprintf(stderr, "SocksClient: server << Success >>\n");
@@ -844,6 +861,10 @@ void SocksClient::requestGrant(bool b)
 	}
 }
 
+void SocksClient::grantUDPAssociate(const QString &relayHost, int relayPort)
+{
+}
+
 QHostAddress SocksClient::peerAddress() const
 {
 	return d->sock.peerAddress();
@@ -852,6 +873,14 @@ QHostAddress SocksClient::peerAddress() const
 Q_UINT16 SocksClient::peerPort() const
 {
 	return d->sock.peerPort();
+}
+
+QHostAddress SocksClient::udpAddress() const
+{
+}
+
+Q_UINT16 SocksClient::udpPort() const
+{
 }
 
 //----------------------------------------------------------------------------

@@ -34,6 +34,7 @@ class SocksClient : public ByteStream
 public:
 	enum Error { ErrConnectionRefused = ErrCustom, ErrHostNotFound, ErrProxyConnect, ErrProxyNeg, ErrProxyAuth };
 	enum Method { AuthNone=0x0001, AuthUsername=0x0002 };
+	enum Request { ReqConnect, ReqUDPAssociate };
 	SocksClient(QObject *parent=0);
 	SocksClient(int, QObject *parent=0);
 	~SocksClient();
@@ -43,11 +44,14 @@ public:
 	// outgoing
 	void setAuth(const QString &user, const QString &pass="");
 	void connectToHost(const QString &proxyHost, int proxyPort, const QString &host, int port);
+	void udpAssociate(const QString &proxyHost, int proxyPort);
 
 	// incoming
 	void chooseMethod(int);
 	void authGrant(bool);
-	void requestGrant(bool);
+	void requestDeny();
+	void grantConnect();
+	void grantUDPAssociate(const QString &relayHost, int relayPort);
 
 	// from ByteStream
 	bool isOpen() const;
@@ -57,8 +61,13 @@ public:
 	int bytesAvailable() const;
 	int bytesToWrite() const;
 
+	// remote address
 	QHostAddress peerAddress() const;
 	Q_UINT16 peerPort() const;
+
+	// udp
+	QHostAddress udpAddress() const;
+	Q_UINT16 udpPort() const;
 
 signals:
 	// outgoing
@@ -67,7 +76,8 @@ signals:
 	// incoming
 	void incomingMethods(int);
 	void incomingAuth(const QString &user, const QString &pass);
-	void incomingRequest(const QString &host, int port);
+	void incomingConnectRequest(const QString &host, int port);
+	void incomingUDPAssociateRequest();
 
 private slots:
 	void sock_connected();
