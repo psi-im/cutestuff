@@ -41,7 +41,7 @@ public:
 	// from ByteStream
 	bool isOpen() const;
 	void close();
-	int write(const QByteArray &);
+	void write(const QByteArray &);
 	int bytesToWrite() const;
 
 signals:

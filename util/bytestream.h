@@ -34,12 +34,12 @@ public:
 
 	virtual bool isOpen() const;
 	virtual void close();
-	virtual int write(const QByteArray &);
+	virtual void write(const QByteArray &);
 	virtual QByteArray read(int bytes=0);
 	virtual int bytesAvailable() const;
 	virtual int bytesToWrite() const;
 
-	int write(const QCString &);
+	void write(const QCString &);
 
 	static void appendArray(QByteArray *a, const QByteArray &b);
 	static QByteArray takeArray(QByteArray *from, int size=0, bool del=true);

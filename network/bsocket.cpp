@@ -148,10 +148,10 @@ void BSocket::close()
 	}
 }
 
-int BSocket::write(const QByteArray &a)
+void BSocket::write(const QByteArray &a)
 {
 	if(d->state != Connected)
-		return -1;
+		return;
 #ifdef BS_DEBUG
 	QCString cs;
 	cs.resize(a.size()+1);
@@ -159,7 +159,7 @@ int BSocket::write(const QByteArray &a)
 	QString s = QString::fromUtf8(cs);
 	fprintf(stderr, "BSocket: writing [%d]: {%s}\n", a.size(), cs.data());
 #endif
-	return d->qsock->writeBlock(a.data(), a.size());
+	d->qsock->writeBlock(a.data(), a.size());
 }
 
 int BSocket::bytesToWrite() const

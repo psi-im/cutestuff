@@ -10,6 +10,7 @@ HEADERS = \
 	util/base64.h \
 	util/sha1.h \
 	util/bconsole.h \
+	util/qrandom.h \
 	network/ndns.h \
 	network/srvresolver.h \
 	network/bsocket.h \
@@ -25,6 +26,7 @@ SOURCES = \
 	util/base64.cpp \
 	util/sha1.cpp \
 	util/bconsole.cpp \
+	util/qrandom.cpp \
 	network/ndns.cpp \
 	network/srvresolver.cpp \
 	network/bsocket.cpp \

@@ -26,6 +26,7 @@
 #include"bsocket.h"
 #include"base64.h"
 #include"sha1.h"
+#include"qrandom.h"
 
 #ifdef PROX_DEBUG
 #include<stdio.h>
@@ -39,7 +40,7 @@ static QString hpk(int n, const QString &s)
 	if(n == 0)
 		return s;
 	else
-		return Base64::arrayToString( SHA1::hashString(hpk(n - 1, s).latin1()) );
+		return Base64::arrayToString( SHA1::hashString( QCString(hpk(n - 1, s).latin1()) ) );
 }
 
 class HttpPoll::Private
@@ -275,10 +276,15 @@ void HttpPoll::do_sync()
 
 void HttpPoll::resetKey()
 {
-	fprintf(stderr, "reset key!!\n");
+#ifdef PROX_DEBUG
+	fprintf(stderr, "HttpPoll: reset key!\n");
+#endif
+	QByteArray a = QRandom::randomArray(64);
+	QString str = QString::fromLatin1(a.data(), a.size());
+
 	d->key_n = 256;
 	for(int n = 0; n < 256; ++n)
-		d->key[n] = hpk(n+1, "foo");
+		d->key[n] = hpk(n+1, str);
 }
 
 const QString & HttpPoll::getKey(bool *last)

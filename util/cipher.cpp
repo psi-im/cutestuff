@@ -23,6 +23,7 @@
 #include<openssl/evp.h>
 #include<openssl/rsa.h>
 #include"bytestream.h"
+#include"qrandom.h"
 
 static bool lib_encryptArray(const EVP_CIPHER *type, const QByteArray &buf, const QByteArray &key, const QByteArray &iv, bool pad, QByteArray *out)
 {
@@ -129,7 +130,7 @@ Cipher::Key Cipher::generateKey(Type t)
 	if(!type)
 		return k;
 	QByteArray out;
-	if(!lib_generateKeyIV(type, QCString("A key for you."), QByteArray(), &out, 0))
+	if(!lib_generateKeyIV(type, QRandom::randomArray(128), QRandom::randomArray(2), &out, 0))
 		return k;
 	k.setType(t);
 	k.setData(out);

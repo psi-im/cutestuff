@@ -93,17 +93,15 @@ void ByteStream::close()
 
 //!
 //! Writes array \a a to the stream.
-int ByteStream::write(const QByteArray &a)
+void ByteStream::write(const QByteArray &a)
 {
 	if(!isOpen())
-		return -1;
+		return;
 
 	bool doWrite = bytesToWrite() == 0 ? true: false;
 	appendWrite(a);
 	if(doWrite)
-		return tryWrite();
-	else
-		return 0;
+		tryWrite();
 }
 
 //!
@@ -130,11 +128,11 @@ int ByteStream::bytesToWrite() const
 
 //!
 //! Writes string \a cs to the stream.
-int ByteStream::write(const QCString &cs)
+void ByteStream::write(const QCString &cs)
 {
 	QByteArray block(cs.length());
 	memcpy(block.data(), cs.data(), block.size());
-	return write(block);
+	write(block);
 }
 
 //!

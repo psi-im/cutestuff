@@ -161,12 +161,10 @@ void HttpConnect::close()
 		reset();
 }
 
-int HttpConnect::write(const QByteArray &buf)
+void HttpConnect::write(const QByteArray &buf)
 {
 	if(d->active)
-		return d->sock.write(buf);
-	else
-		return -1;
+		d->sock.write(buf);
 }
 
 QByteArray HttpConnect::read(int bytes)

@@ -4,14 +4,12 @@ test:
   xmlenc
 
 code:
-  bytestream: document or remove write()'s return value
-  cipher: generate random keys (right now it is all static)
-  httppoll: use random keys
-  xhtml
   qssl: server support, certificate information, hostname verify?
   securestream: wrap QSSLFilter as ByteStream
+  qrandom: better randomness (use /dev/urandom on unix, srand on windows)
+  import misha's code
+  finish globalaccel
   idle
-  import misha's iconset code
 
 port:
   win32: bconsole
