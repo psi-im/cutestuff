@@ -49,7 +49,7 @@ private:
 	Private *d;
 
 	friend class SocksClient;
-	SocksUDP(SocksClient *sc, const QString &host, int port);
+	SocksUDP(SocksClient *sc, const QString &host, int port, const QHostAddress &routeAddr, int routePort);
 };
 
 class SocksClient : public ByteStream
@@ -91,7 +91,7 @@ public:
 	// udp
 	QString udpAddress() const;
 	Q_UINT16 udpPort() const;
-	SocksUDP *createUDP(const QString &host, int port);
+	SocksUDP *createUDP(const QString &host, int port, const QHostAddress &routeAddr, int routePort);
 
 signals:
 	// outgoing

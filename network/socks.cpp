@@ -155,11 +155,13 @@ public:
 	QSocketDevice *sd;
 	QSocketNotifier *sn;
 	SocksClient *sc;
+	QHostAddress routeAddr;
+	int routePort;
 	QString host;
 	int port;
 };
 
-SocksUDP::SocksUDP(SocksClient *sc, const QString &host, int port)
+SocksUDP::SocksUDP(SocksClient *sc, const QString &host, int port, const QHostAddress &routeAddr, int routePort)
 :QObject(sc)
 {
 	d = new Private;
@@ -170,6 +172,8 @@ SocksUDP::SocksUDP(SocksClient *sc, const QString &host, int port)
 	connect(d->sn, SIGNAL(activated(int)), SLOT(sn_activated(int)));
 	d->host = host;
 	d->port = port;
+	d->routeAddr = routeAddr;
+	d->routePort = routePort;
 }
 
 SocksUDP::~SocksUDP()
@@ -189,7 +193,7 @@ void SocksUDP::write(const QByteArray &data)
 {
 	QByteArray buf = sp_create_udp(d->host, d->port, data);
 	d->sd->setBlocking(true);
-	d->sd->writeBlock(buf.data(), buf.size(), d->sc->udpAddress(), d->sc->udpPort());
+	d->sd->writeBlock(buf.data(), buf.size(), d->routeAddr, d->routePort);
 	d->sd->setBlocking(false);
 }
 
@@ -1079,9 +1083,9 @@ Q_UINT16 SocksClient::udpPort() const
 	return d->udpPort;
 }
 
-SocksUDP *SocksClient::createUDP(const QString &host, int port)
+SocksUDP *SocksClient::createUDP(const QString &host, int port, const QHostAddress &routeAddr, int routePort)
 {
-	return new SocksUDP(this, host, port);
+	return new SocksUDP(this, host, port, routeAddr, routePort);
 }
 
 //----------------------------------------------------------------------------
