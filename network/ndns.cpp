@@ -53,6 +53,7 @@
 #include<qapplication.h>
 #include<qsocketdevice.h>
 #include<qptrlist.h>
+#include<qeventloop.h>
 
 #ifdef Q_OS_UNIX
 #include<netdb.h>
@@ -240,8 +241,10 @@ void NDnsManager::tryDestroy()
 
 void NDnsManager::app_aboutToQuit()
 {
-	while(man)
-		qApp->processEvents();
+	while(man) {
+		QEventLoop *e = qApp->eventLoop();
+		e->processEvents(QEventLoop::WaitForMore);
+	}
 }
 
 
