@@ -1113,6 +1113,7 @@ SocksServer::SocksServer(QObject *parent)
 
 SocksServer::~SocksServer()
 {
+	stop();
 	d->incomingConns.setAutoDelete(true);
 	d->incomingConns.clear();
 	delete d;
