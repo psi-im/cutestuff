@@ -124,7 +124,7 @@ public:
 		i->sn = new QSocketNotifier(i->sd->socket(), QSocketNotifier::Read);
 		i->connect(i->sn, SIGNAL(activated(int)), SLOT(sn_activated(int)));
 		i->_port = port;
-		printf("UDP BIND: [%d]\n", port);
+		//printf("UDP BIND: [%d]\n", port);
 		return i;
 	}
 
@@ -132,7 +132,7 @@ public:
 	{
 		delete sn;
 		delete sd;
-		printf("UDP UNBIND: [%d]\n", _port);
+		//printf("UDP UNBIND: [%d]\n", _port);
 	}
 
 	int port() const
@@ -204,8 +204,9 @@ public:
 
 		QPtrListIterator<UDPItem> it(list);
 		it += count;
-		for(UDPItem *u; (u = it.current());)
-			list.removeRef(u);
+		int del = list.count() - count;
+		for(int n = 0; n < del; ++n)
+			list.removeRef(it.current());
 		return true;
 	}
 
@@ -435,7 +436,8 @@ PortRange AltPorts::range() const
 
 void AltPorts::send(int index, const QHostAddress &addr, int destPort, const QByteArray &buf)
 {
-	d->ports->send(index, addr, destPort, buf);
+	if(d->ports)
+		d->ports->send(index, addr, destPort, buf);
 }
 
 #include "altports.moc"
