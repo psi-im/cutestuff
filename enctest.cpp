@@ -13,19 +13,6 @@ static QCString elemToString(const QDomElement &e)
 	return out.utf8();
 }
 
-char txt[]=
-	"flen must be less than RSA_size(rsa) - 11 for the PKCS #1\n"
-	"v1.5 based padding modes, and less than RSA_size(rsa) - 41\n"
-	"for RSA_PKCS1_OAEP_PADDING. The random number generator\n"
-	"must be seeded prior to calling RSA_public_encrypt().\n"
-	"\n"
-	"RSA_private_decrypt() decrypts the flen bytes at from\n"
-	"using the private key rsa and stores the plaintext in to.\n"
-	"to must point to a memory section large enough to hold the\n"
-	"decrypted data (which is smaller than RSA_size(rsa)).\n"
-	"padding is the padding mode that was used to encrypt the\n"
-	"data.\n";
-
 int main()
 {
 	QDomDocument doc;
@@ -48,13 +35,13 @@ int main()
 	bool ok;
 	QCString cs = "Hello.";
 	printf("cs[%d]\n", cs.size());
-	QByteArray result = encryptRSA(cs, rsa, &ok);
+	QByteArray result = encryptRSA2(cs, rsa, &ok);
 	if(!ok) {
 		printf("Unable to RSA encrypt!\n");
 		return 0;
 	}
 	printf("result[%d]\n", result.size());
-	QByteArray result2 = decryptRSA(result, rsa, &ok);
+	QByteArray result2 = decryptRSA2(result, rsa, &ok);
 	if(!ok) {
 		printf("Unable to RSA decrypt!\n");
 		return 0;

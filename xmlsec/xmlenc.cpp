@@ -436,15 +436,29 @@ bool Encrypted::encryptKey(const Cipher::Key &data, const Cipher::Key &key)
 	return true;
 }
 
-/*bool Encrypted::encryptKey(const Cipher::Key &data, const Cipher::Key &key)
+bool Encrypted::encryptKey(const Cipher::Key &data, const RSAKey &key)
 {
-	if(!sym_keywrap(data.data(), key, &v_cval))
+	bool useOAEP;
+	if(data.type() == Cipher::TripleDES)
+		useOAEP = false;
+	else
+		useOAEP = true;
+
+	bool ok;
+	QByteArray result;
+	if(useOAEP)
+		result = encryptRSA2(data.data(), key, &ok);
+	else
+		result = encryptRSA(data.data(), key, &ok);
+	if(!ok)
 		return false;
+
 	v_type = Key;
 	v_dataType = Arbitrary;
-	v_method = cipherTypeToMethod(key.type());
+	v_method = useOAEP ? RSA_OAEP : RSA_1_5;
+	v_cval = Base64::arrayToString(result);
 	return true;
-}*/
+}
 
 QByteArray Encrypted::decryptData(const Cipher::Key &key) const
 {
@@ -499,6 +513,21 @@ QByteArray Encrypted::decryptKey(const Cipher::Key &key) const
 	return result;
 }
 
+QByteArray Encrypted::decryptKey(const RSAKey &key) const
+{
+	QByteArray data = Base64::stringToArray(v_cval);
+	QByteArray result;
+	bool ok;
+	if(v_method == RSA_OAEP)
+		result = decryptRSA2(data, key, &ok);
+	else
+		result = decryptRSA(data, key, &ok);
+	if(!ok)
+		return QByteArray();
+
+	return result;
+}
+
 QDomElement Encrypted::toXml(QDomDocument *doc) const
 {
 	QString baseNS = "http://www.w3.org/2001/04/xmlenc#";
@@ -518,6 +547,12 @@ QDomElement Encrypted::toXml(QDomDocument *doc) const
 	// method
 	QDomElement meth = doc->createElement("EncryptionMethod");
 	meth.setAttribute("Algorithm", methodToAlgorithm(v_method, v_type));
+	if(v_method == RSA_OAEP) {
+		// add digest method
+		QDomElement dm = doc->createElement("ds:DigestMethod");
+		dm.setAttribute("Algorithm", "http://www.w3.org/2000/09/xmldsig#sha1");
+		meth.appendChild(dm);
+	}
 	enc.appendChild(meth);
 
 	// keyinfo
@@ -697,6 +732,10 @@ QString Encrypted::methodToAlgorithm(Method m, Type t) const
 		s = (t == Key ? "kw-aes128": "aes128-cbc");
 	else if(m == AES_256)
 		s = (t == Key ? "kw-aes256": "aes256-cbc");
+	else if(m == RSA_1_5)
+		s = "rsa-1_5";
+	else if(m == RSA_OAEP)
+		s = "rsa-oaep-mgf1p";
 	else
 		return "";
 
@@ -712,6 +751,10 @@ Method Encrypted::algorithmToMethod(const QString &s) const
 		m = AES_128;
 	else if(s == "aes256-cbc" || s == "kw-aes256")
 		m = AES_256;
+	else if(s == "rsa-1_5")
+		m = RSA_1_5;
+	else if(s == "rsa-oaep-mgf1p")
+		m = RSA_OAEP;
 	else
 		return None;
 

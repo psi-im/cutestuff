@@ -312,3 +312,45 @@ QByteArray decryptRSA(const QByteArray &buf, const RSAKey &key, bool *ok)
 		*ok = true;
 	return result;
 }
+
+QByteArray encryptRSA2(const QByteArray &buf, const RSAKey &key, bool *ok)
+{
+	if(ok)
+		*ok = false;
+
+	int size = RSA_size((RSA *)key.data());
+	int flen = buf.size();
+	if(flen >= size - 41)
+		flen = size - 41;
+	QByteArray result(size);
+	unsigned char *from = (unsigned char *)buf.data();
+	unsigned char *to = (unsigned char *)result.data();
+	int r = RSA_public_encrypt(flen, from, to, (RSA *)key.data(), RSA_PKCS1_OAEP_PADDING);
+	if(r == -1)
+		return QByteArray();
+	result.resize(r);
+
+	if(ok)
+		*ok = true;
+	return result;
+}
+
+QByteArray decryptRSA2(const QByteArray &buf, const RSAKey &key, bool *ok)
+{
+	if(ok)
+		*ok = false;
+
+	int size = RSA_size((RSA *)key.data());
+	int flen = buf.size();
+	QByteArray result(size);
+	unsigned char *from = (unsigned char *)buf.data();
+	unsigned char *to = (unsigned char *)result.data();
+	int r = RSA_private_decrypt(flen, from, to, (RSA *)key.data(), RSA_PKCS1_OAEP_PADDING);
+	if(r == -1)
+		return QByteArray();
+	result.resize(r);
+
+	if(ok)
+		*ok = true;
+	return result;
+}

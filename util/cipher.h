@@ -73,5 +73,7 @@ private:
 RSAKey generateRSAKey();
 QByteArray encryptRSA(const QByteArray &buf, const RSAKey &key, bool *ok=0);
 QByteArray decryptRSA(const QByteArray &buf, const RSAKey &key, bool *ok=0);
+QByteArray encryptRSA2(const QByteArray &buf, const RSAKey &key, bool *ok=0);
+QByteArray decryptRSA2(const QByteArray &buf, const RSAKey &key, bool *ok=0);
 
 #endif

@@ -145,13 +145,13 @@ namespace XmlEnc
 		bool encryptElement(const QDomElement &data, const Cipher::Key &key);
 		bool encryptContent(const QDomElement &data, const Cipher::Key &key);
 		bool encryptKey(const Cipher::Key &data, const Cipher::Key &key);
-		//bool encryptKey(const Cipher::Key &data, const RSAKey &key);
+		bool encryptKey(const Cipher::Key &data, const RSAKey &key);
 
 		QByteArray decryptData(const Cipher::Key &key) const;
 		QDomElement decryptElement(QDomDocument *, const Cipher::Key &key) const;
 		QDomNodeList decryptContent(QDomDocument *, const Cipher::Key &key) const;
 		QByteArray decryptKey(const Cipher::Key &key) const;
-		//QByteArray decryptKey(const RSAKey &key) const;
+		QByteArray decryptKey(const RSAKey &key) const;
 
 		QDomElement toXml(QDomDocument *) const;
 		bool fromXml(const QDomElement &);
