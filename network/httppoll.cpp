@@ -36,6 +36,8 @@
 #include"td.h"
 #endif
 
+#define POLL_KEYS 256
+
 // CS_NAMESPACE_BEGIN
 
 static QByteArray randomArray(int size)
@@ -77,7 +79,7 @@ public:
 
 	QTimer *t;
 
-	QString key[256];
+	QString key[POLL_KEYS];
 	int key_n;
 
 	int polltime;
@@ -156,7 +158,7 @@ void HttpPoll::connectToHost(const QString &proxyHost, int proxyPort, const QStr
 	QString key = getKey(&last);
 
 #ifdef PROX_DEBUG
-	fprintf(stderr, "HttpPoll: Connecting to %s:%d", proxyHost.latin1(), proxyPort);
+	fprintf(stderr, "HttpPoll: Connecting to %s:%d [%s]", d->host.latin1(), d->port, d->url.latin1());
 	if(d->user.isEmpty())
 		fprintf(stderr, "\n");
 	else
@@ -241,12 +243,13 @@ void HttpPoll::http_result()
 
 	// session error?
 	if(id.right(2) == ":0") {
-		if(id == "0:0") {
+		if(id == "0:0" && d->state == 2) {
 			reset();
 			connectionClosed();
 			return;
 		}
 		else {
+			reset();
 			error(ErrRead);
 			return;
 		}
@@ -342,8 +345,8 @@ void HttpPoll::resetKey()
 	QByteArray a = randomArray(64);
 	QString str = QString::fromLatin1(a.data(), a.size());
 
-	d->key_n = 256;
-	for(int n = 0; n < 256; ++n)
+	d->key_n = POLL_KEYS;
+	for(int n = 0; n < POLL_KEYS; ++n)
 		d->key[n] = hpk(n+1, str);
 }
 
@@ -631,6 +634,9 @@ void HttpProxyPost::sock_readyRead()
 
 void HttpProxyPost::sock_error(int x)
 {
+#ifdef PROX_DEBUG
+	fprintf(stderr, "HttpProxyPost: socket error: %d\n", x);
+#endif
 	reset(true);
 	if(x == BSocket::ErrHostNotFound)
 		error(ErrProxyConnect);
