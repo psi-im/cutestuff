@@ -23,63 +23,34 @@
 #include<qcstring.h>
 #include<qsocket.h>
 #include<qdns.h>
-#include"../network/ndns.h"
+#include"ndns.h"
+#include"srvresolver.h"
 
 #ifdef BS_DEBUG
 #include<stdio.h>
 #endif
 
-
-static void sortSRVList(QValueList<QDns::Server> &list)
-{
-	QValueList<QDns::Server> tmp = list;
-	list.clear();
-
-	while(!tmp.isEmpty()) {
-		QValueList<QDns::Server>::Iterator p = tmp.end();
-		for(QValueList<QDns::Server>::Iterator it = tmp.begin(); it != tmp.end(); ++it) {
-			if(p == tmp.end())
-				p = it;
-			else {
-				int a = (*it).priority;
-				int b = (*p).priority;
-				int j = (*it).weight;
-				int k = (*p).weight;
-				if(a < b || (a == b && j < k))
-					p = it;
-			}
-		}
-		list.append(*p);
-		tmp.remove(p);
-	}
-}
-
-
 class BSocket::Private
 {
 public:
-	Private()
-	{
-		qsock = 0;
-		qdns = 0;
-	}
+	Private() {}
 
 	QSocket *qsock;
-	QDns *qdns;
 	int state;
 
 	NDns ndns;
+	SrvResolver srv;
 	QString host;
 	int port;
-	bool serverMode;
-	QValueList<QDns::Server> servers;
 };
 
 BSocket::BSocket(QObject *parent)
 :ByteStream(parent)
 {
 	d = new Private;
+	d->qsock = 0;
 	connect(&d->ndns, SIGNAL(resultsReady()), SLOT(ndns_done()));
+	connect(&d->srv, SIGNAL(resultsReady()), SLOT(srv_done()));
 
 	reset();
 }
@@ -96,16 +67,12 @@ void BSocket::reset(bool clear)
 		d->qsock->deleteLater();
 		d->qsock = 0;
 	}
-	if(d->qdns) {
-		d->qdns->deleteLater();
-		d->qdns = 0;
-	}
+	if(d->srv.isBusy())
+		d->srv.stop();
 	if(d->ndns.isBusy())
 		d->ndns.stop();
 	if(clear)
 		clearReadBuffer();
-	d->serverMode = false;
-	d->servers.clear();
 	d->state = Idle;
 }
 
@@ -127,7 +94,6 @@ void BSocket::connectToHost(const QString &host, Q_UINT16 port)
 	if(d->qsock)
 		d->qsock->close();
 	reset(true);
-	d->serverMode = false;
 	d->host = host;
 	d->port = port;
 	d->state = HostLookup;
@@ -139,13 +105,8 @@ void BSocket::connectToServer(const QString &srv, const QString &type)
 	if(d->qsock)
 		d->qsock->close();
 	reset(true);
-	d->serverMode = true;
-	d->host = QString("_") + type + "._tcp." + srv;
 	d->state = HostLookup;
-	d->qdns = new QDns;
-	connect(d->qdns, SIGNAL(resultsReady()), SLOT(qdns_done()));
-	d->qdns->setRecordType(QDns::Srv);
-	d->qdns->setLabel(d->host);
+	d->srv.resolve(srv, type, "tcp");
 }
 
 void BSocket::setSocket(int s)
@@ -208,44 +169,26 @@ int BSocket::bytesToWrite() const
 	return d->qsock->bytesToWrite();
 }
 
-void BSocket::qdns_done()
+void BSocket::srv_done()
 {
-	// apparently we sometimes get this signal even though the results aren't ready
-	if(d->qdns->isWorking())
-		return;
-
-	// grab the server list and destroy the qdns object
-	QValueList<QDns::Server> list;
-	if(d->qdns->recordType() == QDns::Srv)
-		list = d->qdns->servers();
-	delete d->qdns;
-	d->qdns = 0;
-
-	if(list.isEmpty()) {
+	if(d->srv.result()) {
+		d->host = d->srv.resultString();
+		d->port = d->srv.resultPort();
+		do_connect();
+	}
+	else {
 #ifdef BS_DEBUG
-		fprintf(stderr, "BSocket: Error retrieving SRV record.\n");
+		fprintf(stderr, "BSocket: Error resolving hostname.\n");
 #endif
 		error(ErrHostNotFound);
-		return;
 	}
-	sortSRVList(list);
-	d->servers = list;
-	d->state = Connecting;
-
-	// let's get this party started
-	d->ndns.resolve(d->servers.first().name.latin1());
 }
 
 void BSocket::ndns_done()
 {
 	if(d->ndns.result()) {
 		d->host = d->ndns.resultString();
-		if(d->serverMode) {
-			d->port = d->servers.first().port;
-			d->servers.remove(d->servers.begin());
-		}
-		else
-			d->state = Connecting;
+		d->state = Connecting;
 		do_connect();
 	}
 	else {

@@ -22,7 +22,7 @@
 #define CS_BSOCKET_H
 
 #include<qobject.h>
-#include"../util/bytestream.h"
+#include"bytestream.h"
 
 class BSocket : public ByteStream
 {
@@ -54,7 +54,7 @@ private slots:
 	void qs_readyRead();
 	void qs_bytesWritten(int);
 	void qs_error(int);
-	void qdns_done();
+	void srv_done();
 	void ndns_done();
 
 private:

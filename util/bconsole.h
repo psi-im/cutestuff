@@ -21,7 +21,7 @@
 #ifndef CS_BCONSOLE_H
 #define CS_BCONSOLE_H
 
-#include"../util/bytestream.h"
+#include"bytestream.h"
 
 class BConsole : public ByteStream
 {

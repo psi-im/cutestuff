@@ -1,11 +1,11 @@
 #include"adconn.h"
 
 #include<qapplication.h>
-#include"util/bconsole.h"
-#include"network/bsocket.h"
-#include"network/httpconnect.h"
-#include"network/socks.h"
-#include"network/httppoll.h"
+#include"bconsole.h"
+#include"bsocket.h"
+#include"httpconnect.h"
+#include"socks.h"
+#include"httppoll.h"
 
 #include<stdio.h>
 

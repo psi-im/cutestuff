@@ -23,9 +23,9 @@
 #include<qstringlist.h>
 #include<qurl.h>
 #include<qtimer.h>
-#include"../network/bsocket.h"
-#include"../util/base64.h"
-#include"../util/sha1.h"
+#include"bsocket.h"
+#include"base64.h"
+#include"sha1.h"
 
 #ifdef PROX_DEBUG
 #include<stdio.h>

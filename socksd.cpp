@@ -1,9 +1,9 @@
 #include"socksd.h"
 
 #include<qapplication.h>
-#include"util/bconsole.h"
-#include"network/bsocket.h"
-#include"network/socks.h"
+#include"bconsole.h"
+#include"bsocket.h"
+#include"socks.h"
 
 #include<stdio.h>
 

@@ -36,9 +36,10 @@ public:
 
 	void resolve(const QCString &);
 	void stop();
+	bool isBusy() const;
+
 	uint result() const;
 	QString resultString() const;
-	bool isBusy() const;
 
 signals:
 	void resultsReady();

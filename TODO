@@ -4,6 +4,7 @@ test:
   xmlenc
 
 code:
+  bsocket: try all SRV servers, not just the first one
   cipher: generate random keys (right now it is all static)
   httppoll: use random keys
   xhtml
@@ -11,7 +12,6 @@ code:
   securestream: wrap QSSLFilter as ByteStream
   idle
   import misha's iconset code
-  separate ServSock and SRV lookups into their own file
 
 port:
   win32: bconsole

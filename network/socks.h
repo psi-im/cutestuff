@@ -21,8 +21,7 @@
 #ifndef CS_SOCKS_H
 #define CS_SOCKS_H
 
-#include<qserversocket.h>
-#include"../util/bytestream.h"
+#include"bytestream.h"
 
 class SocksServer;
 
@@ -56,7 +55,10 @@ public:
 	int bytesToWrite() const;
 
 signals:
+	// outgoing
 	void connected();
+
+	// incoming
 	void incomingMethods(int);
 	void incomingAuth(const QString &user, const QString &pass);
 	void incomingRequest(const QString &host, int port);
@@ -90,7 +92,8 @@ public:
 	~SocksServer();
 
 	bool isActive() const;
-	bool listen(int port);
+	bool listen(Q_UINT16 port);
+	void stop();
 	int port() const;
 	SocksClient *takeIncoming();
 
@@ -104,20 +107,6 @@ private slots:
 private:
 	class Private;
 	Private *d;
-};
-
-class ServSock : public QServerSocket
-{
-	Q_OBJECT
-public:
-	ServSock(int port);
-
-signals:
-	void connectionReady(int);
-
-protected:
-	// reimplemented
-	void newConnection(int);
 };
 
 #endif

@@ -25,7 +25,8 @@
 #include<qptrlist.h>
 #include<qtimer.h>
 #include<netinet/in.h>
-#include"../network/bsocket.h"
+#include"servsock.h"
+#include"bsocket.h"
 
 #ifdef PROX_DEBUG
 #include<stdio.h>
@@ -811,12 +812,9 @@ void SocksClient::requestGrant(bool b)
 class SocksServer::Private
 {
 public:
-	Private()
-	{
-		serv = 0;
-	}
+	Private() {}
 
-	ServSock *serv;
+	ServSock serv;
 	QPtrList<SocksClient> incomingConns;
 };
 
@@ -824,46 +822,34 @@ SocksServer::SocksServer(QObject *parent)
 :QObject(parent)
 {
 	d = new Private;
+	connect(&d->serv, SIGNAL(connectionReady(int)), SLOT(connectionReady(int)));
 }
 
 SocksServer::~SocksServer()
 {
 	d->incomingConns.setAutoDelete(true);
 	d->incomingConns.clear();
-	delete d->serv;
 	delete d;
 }
 
 bool SocksServer::isActive() const
 {
-	return (d->serv ? true: false);
+	return d->serv.isActive();
 }
 
-bool SocksServer::listen(int port)
+bool SocksServer::listen(Q_UINT16 port)
 {
-	delete d->serv;
-	d->serv = 0;
+	return d->serv.listen(port);
+}
 
-	if(port == -1)
-		return false;
-
-	d->serv = new ServSock(port);
-	if(!d->serv->ok()) {
-		delete d->serv;
-		d->serv = 0;
-		return false;
-	}
-	connect(d->serv, SIGNAL(connectionReady(int)), SLOT(connectionReady(int)));
-
-	return true;
+void SocksServer::stop()
+{
+	d->serv.stop();
 }
 
 int SocksServer::port() const
 {
-	if(d->serv)
-		return d->serv->port();
-	else
-		return -1;
+	return d->serv.port();
 }
 
 SocksClient *SocksServer::takeIncoming()
@@ -896,18 +882,4 @@ void SocksServer::connectionError()
 	SocksClient *c = (SocksClient *)sender();
 	d->incomingConns.removeRef(c);
 	c->deleteLater();
-}
-
-
-//----------------------------------------------------------------------------
-// ServSocket
-//----------------------------------------------------------------------------
-ServSock::ServSock(int port)
-:QServerSocket(port, 16)
-{
-}
-
-void ServSock::newConnection(int x)
-{
-	connectionReady(x);
 }

@@ -21,7 +21,7 @@
 #ifndef CS_HTTPPOLL_H
 #define CS_HTTPPOLL_H
 
-#include"../util/bytestream.h"
+#include"bytestream.h"
 
 class HttpPoll : public ByteStream
 {

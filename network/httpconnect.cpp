@@ -21,8 +21,8 @@
 #include"httpconnect.h"
 
 #include<qstringlist.h>
-#include"../network/bsocket.h"
-#include"../util/base64.h"
+#include"bsocket.h"
+#include"base64.h"
 
 #ifdef PROX_DEBUG
 #include<stdio.h>
