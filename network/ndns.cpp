@@ -19,34 +19,34 @@
  */
 
 //! \class NDns ndns.h
-//! \brief NDns - simple DNS resolution using native system calls
+//! \brief Simple DNS resolution using native system calls
 //! 
-//!  This class is to be used when Qt's QDns is not good enough.  Because QDns
-//!  does not use threads, it cannot make a system call asyncronously.  Thus,
-//!  QDns tries to imitate the behavior of each platform's native behavior, and
-//!  generally falls short.
+//! This class is to be used when Qt's QDns is not good enough.  Because QDns
+//! does not use threads, it cannot make a system call asyncronously.  Thus,
+//! QDns tries to imitate the behavior of each platform's native behavior, and
+//! generally falls short.
 //!
-//!  NDns uses a thread to make the system call happen in the background.  This
-//!  gives your program normal DNS behavior, at the cost of requiring threads
-//!  to build.
+//! NDns uses a thread to make the system call happen in the background.  This
+//! gives your program native DNS behavior, at the cost of requiring threads
+//! to build.
 //!
-//!  \code
-//!  #include "ndns.h"
+//! \code
+//! #include "ndns.h"
 //!
-//!  ...
+//! ...
 //!
-//!  NDns dns;
-//!  dns.resolve("www.affinix.com");
+//! NDns dns;
+//! dns.resolve("psi.affinix.com");
 //!
-//!  // The class will emit the resultsReady() signal
-//!  // when the resolution is finished. You may then retrieve the results:
+//! // The class will emit the resultsReady() signal when the resolution
+//! // is finished. You may then retrieve the results:
 //!
-//!  uint ip_address = dns.result();
+//! uint ip_address = dns.result();
 //!
-//!  // or if you want to get the string ip,
+//! // or if you want to get the IP address as a string:
 //!
-//!  QString ip_address = dns.resultString();
-//!  \endcode
+//! QString ip_address = dns.resultString();
+//! \endcode
 
 #include "ndns.h"
 
@@ -62,77 +62,66 @@
 #endif
 
 //! \fn void NDns::resultsReady()
-//! \brief Status Signal
-//!
-//! Tells you if the object finished retrieving the ip information.
+//! This signal is emitted when the DNS resolution succeeds or fails.
 
-//! \brief Creates NDns object
 //!
-//! \param par QObject pointer
-NDns::NDns(QObject *par)
-:QObject(par)
+//! Constructs an NDns object with parent \a parent.
+NDns::NDns(QObject *parent)
+:QObject(parent)
 {
 	v_result = 0;
 	v_resultString = "";
 	worker = 0;
 }
 
-//! Destroys NDns Object
+//!
+//! Destroys the object and frees allocated resources.
 NDns::~NDns()
 {
 }
 
-//! \brief Specify a host to resolve.
 //!
-//! \param host Host to resolve with the DNS (eg. www.affinix.com)
-void NDns::resolve(const QCString &host)
+//! Resolves hostname \a host (eg. psi.affinix.com)
+void NDns::resolve(const QString &host)
 {
 	if(worker)
 		return;
 
-	worker = new NDnsWorker(this, host);
+	worker = new NDnsWorker(this, host.latin1());
 	worker->start();
 }
 
-//! \brief Blocks the current DNS lookup.
 //!
-//! \note This will not stop the current dns lookup. This will only block the current dns.
+//! Cancels the lookup action.
+//! \note This will not stop the underlying system call, which must finish before the next lookup will proceed.
 void NDns::stop()
 {
 	worker = 0;
 }
 
-//! \brief returns the ip information
 //!
-//! \return uint - ip address in machine form.\n
-//! 0 if the lookup failed.
-//! \warning You must wait for resultsReady() to signal back
+//! Returns the IP address as a 32-bit integer in host-byte-order.  This will be 0 if the lookup failed.
 //! \sa resultsReady()
 uint NDns::result() const
 {
 	return v_result;
 }
 
-//! \brief returns the ip in string format
 //!
-//! \return QString - ip address in string form. \n
-//! empty if the lookup failed
-//! \warning You must wait for resultsReady() to signal back
+//! Returns the IP address as a string.  This will be an empty string if the lookup failed.
 //! \sa resultsReady()
 QString NDns::resultString() const
 {
 	return v_resultString;
 }
 
-//! \brief Status of the object
 //!
-//! \return bool - status of your host lookup
+//! Returns TRUE if busy resolving a hostname.
 bool NDns::isBusy() const
 {
 	return worker ? true: false;
 }
 
-//! Internel function!! (Don't call)
 bool NDns::event(QEvent *e)
 {
 	if(e->type() == QEvent::User) {
@@ -205,4 +194,3 @@ void NDnsWorker::run()
 	success = true;
 	QThread::postEvent(par, new NDnsWorkerEvent(this));
 }
-

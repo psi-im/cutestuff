@@ -20,6 +20,24 @@
 
 #include"base64.h"
 
+//! \class Base64 base64.h
+//! \brief Base64 conversion functions.
+//!
+//! Converts Base64 data between arrays and strings.
+//!
+//! \code
+//! #include "base64.h"
+//!
+//! ...
+//!
+//! // encode a block of data into base64
+//! QByteArray block(1024);
+//! QByteArray enc = Base64::encode(block);
+//!
+//!  \endcode
+
+//!
+//! Encodes array \a s and returns the result.
 QByteArray Base64::encode(const QByteArray &s)
 {
 	int i;
@@ -52,6 +70,8 @@ QByteArray Base64::encode(const QByteArray &s)
 	return p;
 }
 
+//!
+//! Decodes array \a s and returns the result.
 QByteArray Base64::decode(const QByteArray &s)
 {
 	// return value
@@ -116,6 +136,8 @@ QByteArray Base64::decode(const QByteArray &s)
 	return p;
 }
 
+//!
+//! Encodes array \a a and returns the result as a string.
 QString Base64::arrayToString(const QByteArray &a)
 {
 	QByteArray b = encode(a);
@@ -125,6 +147,8 @@ QString Base64::arrayToString(const QByteArray &a)
 	return QString::fromLatin1(c);
 }
 
+//!
+//! Decodes string \a s and returns the result as an array.
 QByteArray Base64::stringToArray(const QString &s)
 {
 	const char *c = s.latin1();
@@ -135,6 +159,8 @@ QByteArray Base64::stringToArray(const QString &s)
 	return a;
 }
 
+//!
+//! Encodes string \a s and returns the result as a string.
 QString Base64::encodeString(const QString &s)
 {
 	QCString c = s.utf8();
@@ -143,4 +169,3 @@ QString Base64::encodeString(const QString &s)
 	memcpy(b.data(), c.data(), len);
 	return arrayToString(b);
 }
-

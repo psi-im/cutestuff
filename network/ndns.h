@@ -31,10 +31,10 @@ class NDns : public QObject
 {
 	Q_OBJECT
 public:
-	NDns(QObject *par=0);
+	NDns(QObject *parent=0);
 	~NDns();
 
-	void resolve(const QCString &);
+	void resolve(const QString &);
 	void stop();
 	bool isBusy() const;
 
@@ -84,6 +84,6 @@ private:
 	QCString host;
 	QObject *par;
 };
+//! \endif
 
 #endif
-//! \endif

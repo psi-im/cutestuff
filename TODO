@@ -4,6 +4,7 @@ test:
   xmlenc
 
 code:
+  bytestream: document or remove write()'s return value
   cipher: generate random keys (right now it is all static)
   httppoll: use random keys
   xhtml
@@ -17,10 +18,7 @@ port:
   mac: globalaccel (eric)
 
 document:
-  bytestream
-  base64
   sha1
-  ndns
   servsock
   srvresolver
   bsocket

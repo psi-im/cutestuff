@@ -63,8 +63,10 @@ protected:
 	virtual int tryWrite();
 
 private:
+//! \if _hide_doc_
 	class Private;
 	Private *d;
+//! \endif
 };
 
 #endif

@@ -139,7 +139,7 @@ Q_UINT16 SrvResolver::resultPort() const
 
 void SrvResolver::tryNext()
 {
-	d->ndns.resolve(d->servers.first().name.latin1());
+	d->ndns.resolve(d->servers.first().name);
 }
 
 void SrvResolver::qdns_done()

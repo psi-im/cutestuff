@@ -97,7 +97,7 @@ void BSocket::connectToHost(const QString &host, Q_UINT16 port)
 	d->host = host;
 	d->port = port;
 	d->state = HostLookup;
-	d->ndns.resolve(d->host.latin1());
+	d->ndns.resolve(d->host);
 }
 
 void BSocket::connectToServer(const QString &srv, const QString &type)
