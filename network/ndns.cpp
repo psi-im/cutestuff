@@ -126,10 +126,10 @@ bool NDns::event(QEvent *e)
 {
 	if(e->type() == QEvent::User) {
 		NDnsWorkerEvent *we = (NDnsWorkerEvent *)e;
+		worker->wait();
 		if(worker != we->worker())
 			return true;
 
-		worker->wait();
 		if(worker->success) {
 			v_result = worker->addr;
 			v_resultString = worker->addrString;
