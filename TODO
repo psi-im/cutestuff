@@ -5,10 +5,10 @@ test:
 
 code:
   cipher: generate random keys (right now it is all static)
-  xmlenc: RSA keys
+  httppoll: use random keys
+  xhtml
   qssl: server support, certificate information, hostname verify?
   securestream: wrap QSSLFilter as ByteStream
-  httppoll: use random keys
   idle
   import misha's iconset code
 
