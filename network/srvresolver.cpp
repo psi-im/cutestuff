@@ -1,14 +1,28 @@
+/*
+ * srvresolver.cpp - class to simplify SRV lookups
+ * Copyright (C) 2003  Justin Karneges
+ *
+ * This library is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Lesser General Public
+ * License as published by the Free Software Foundation; either
+ * version 2.1 of the License, or (at your option) any later version.
+ *
+ * This library is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * Lesser General Public License for more details.
+ *
+ * You should have received a copy of the GNU Lesser General Public
+ * License along with this library; if not, write to the Free Software
+ * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ *
+ */
+
 #include"srvresolver.h"
 
 #include<qcstring.h>
 #include<qdns.h>
 #include"ndns.h"
-
-/*
-  TODO:
-  if a server hostname can't be resolved, try the next.  report error if none of the remaining servers resolve.
-  add license header
-*/
 
 static void sortSRVList(QValueList<QDns::Server> &list)
 {
@@ -82,7 +96,7 @@ void SrvResolver::next()
 	if(d->servers.isEmpty())
 		return;
 
-	d->ndns.resolve(d->servers.first().name.latin1());
+	tryNext();
 }
 
 void SrvResolver::stop()
@@ -123,6 +137,11 @@ Q_UINT16 SrvResolver::resultPort() const
 	return d->resultPort;
 }
 
+void SrvResolver::tryNext()
+{
+	d->ndns.resolve(d->servers.first().name.latin1());
+}
+
 void SrvResolver::qdns_done()
 {
 	// apparently we sometimes get this signal even though the results aren't ready
@@ -145,21 +164,30 @@ void SrvResolver::qdns_done()
 	d->servers = list;
 
 	// kick it off
-	next();
+	tryNext();
 }
 
 void SrvResolver::ndns_done()
 {
 	uint r = d->ndns.result();
+	int port = d->servers.first().port;
+	d->servers.remove(d->servers.begin());
+
 	if(r) {
 		d->result = r;
 		d->resultString = d->ndns.resultString();
-		d->resultPort = d->servers.first().port;
-		d->servers.remove(d->servers.begin());
+		d->resultPort = port;
 		resultsReady();
 	}
 	else {
-		stop();
-		resultsReady();
+		// failed?  bail if last one
+		if(d->servers.isEmpty()) {
+			stop();
+			resultsReady();
+			return;
+		}
+
+		// otherwise try the next
+		tryNext();
 	}
 }

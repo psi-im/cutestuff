@@ -4,7 +4,6 @@ test:
   xmlenc
 
 code:
-  bsocket: try all SRV servers, not just the first one
   cipher: generate random keys (right now it is all static)
   httppoll: use random keys
   xhtml
@@ -18,6 +17,11 @@ port:
   mac: globalaccel (eric)
 
 document:
-  iconset
-  idle
+  bytestream
+  base64
+  sha1
+  ndns
+  servsock
+  srvresolver
+  bsocket
 

@@ -274,6 +274,12 @@ void BSocket::qs_error(int x)
 #ifdef BS_DEBUG
 	fprintf(stderr, "BSocket: Error.\n");
 #endif
+	// connection error during SRV host connect?  try next
+	if(d->state == HostLookup && (x == QSocket::ErrConnectionRefused || x == QSocket::ErrHostNotFound)) {
+		d->srv.next();
+		return;
+	}
+
 	reset();
 	if(x == QSocket::ErrConnectionRefused)
 		error(ErrConnectionRefused);
