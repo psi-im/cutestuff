@@ -4,18 +4,17 @@ test:
   xmlenc
 
 code:
-  qssl: server support, certificate information, hostname verify?
+  qssl: server support
   securestream: wrap QSSLFilter as ByteStream
   qrandom: better randomness (use /dev/urandom on unix, srand on windows)
   floating TODOs in gnupg, gpgproc ?
   import misha's code
   finish globalaccel
-  idle
-  trayicon
+  finish dirwatch
+  trayicon?
 
 port:
   win32: bconsole
-  mac: globalaccel (eric)
 
 document:
   sha1
