@@ -48,8 +48,10 @@
 //! QString ip_address = dns.resultString();
 //! \endcode
 
-#include <qapplication.h>
-#include "ndns.h"
+#include"ndns.h"
+
+#include<qapplication.h>
+#include<qptrlist.h>
 
 #ifdef Q_OS_UNIX
 #include<netdb.h>
@@ -62,11 +64,11 @@
 #include<windows.h>
 #endif
 
-
 //! \if _hide_doc_
-class NDnsWorkerEvent : public QEvent
+class NDnsWorkerEvent : public QCustomEvent
 {
 public:
+	enum Type { WorkerEvent = QEvent::User + 100 };
 	NDnsWorkerEvent(NDnsWorker *);
 
 	NDnsWorker *worker() const;
@@ -82,8 +84,7 @@ public:
 
 	bool success;
 	bool cancelled;
-	uint addr;
-	QString addrString;
+	QHostAddress addr;
 
 protected:
 	void run();
@@ -94,7 +95,132 @@ private:
 };
 //! \endif
 
-static QMutex workerCancelled;
+//----------------------------------------------------------------------------
+// NDnsManager
+//----------------------------------------------------------------------------
+#ifndef HAVE_GETHOSTBYNAME_R
+static QMutex *workerMutex = 0;
+#endif
+static QMutex *workerCancelled = 0;
+static NDnsManager *man = 0;
+
+class NDnsManager::Item
+{
+public:
+	NDns *ndns;
+	NDnsWorker *worker;
+};
+
+class NDnsManager::Private
+{
+public:
+	Item *find(const NDns *n)
+	{
+		QPtrListIterator<Item> it(list);
+		for(Item *i; (i = it.current()); ++it) {
+			if(i->ndns == n)
+				return i;
+		}
+		return 0;
+	}
+
+	Item *find(const NDnsWorker *w)
+	{
+		QPtrListIterator<Item> it(list);
+		for(Item *i; (i = it.current()); ++it) {
+			if(i->worker == w)
+				return i;
+		}
+		return 0;
+	}
+
+	QPtrList<Item> list;
+};
+
+NDnsManager::NDnsManager()
+{
+	workerMutex = new QMutex;
+	workerCancelled = new QMutex;
+
+	d = new Private;
+	d->list.setAutoDelete(true);
+}
+
+NDnsManager::~NDnsManager()
+{
+	delete d;
+
+	delete workerMutex;
+	workerMutex = 0;
+	delete workerCancelled;
+	workerCancelled = 0;
+}
+
+void NDnsManager::resolve(NDns *self, const QString &name)
+{
+	Item *i = new Item;
+	i->ndns = self;
+	i->worker = new NDnsWorker(this, name.latin1());
+	d->list.append(i);
+
+	i->worker->start();
+}
+
+void NDnsManager::stop(NDns *self)
+{
+	Item *i = d->find(self);
+	if(!i)
+		return;
+	// disassociate
+	i->ndns = 0;
+
+	// cancel
+	workerCancelled->lock();
+	i->worker->cancelled = true;
+	workerCancelled->unlock();
+}
+
+bool NDnsManager::isBusy(const NDns *self) const
+{
+	Item *i = d->find(self);
+	return (i ? true: false);
+}
+
+bool NDnsManager::event(QEvent *e)
+{
+	if((int)e->type() == (int)NDnsWorkerEvent::WorkerEvent) {
+		NDnsWorkerEvent *we = static_cast<NDnsWorkerEvent*>(e);
+		we->worker()->wait(); // ensure that the thread is terminated
+
+		Item *i = d->find(we->worker());
+		if(!i) {
+			// should NOT happen
+			return true;
+		}
+		QHostAddress addr = i->worker->addr;
+		NDns *ndns = i->ndns;
+		delete i->worker;
+		d->list.removeRef(i);
+
+		// nuke manager if no longer needed (code that follows MUST BE SAFE!)
+		tryDestroy();
+
+		// requestor still around?
+		if(ndns)
+			ndns->finished(addr);
+		return true;
+	}
+	return false;
+}
+
+void NDnsManager::tryDestroy()
+{
+	if(d->list.isEmpty()) {
+		man = 0;
+		delete this;
+	}
+}
+
 
 //----------------------------------------------------------------------------
 // NDns
@@ -108,26 +234,23 @@ static QMutex workerCancelled;
 NDns::NDns(QObject *parent)
 :QObject(parent)
 {
-	v_result = 0;
-	v_resultString = "";
-	worker = 0;
 }
 
 //!
 //! Destroys the object and frees allocated resources.
 NDns::~NDns()
 {
+	stop();
 }
 
 //!
 //! Resolves hostname \a host (eg. psi.affinix.com)
 void NDns::resolve(const QString &host)
 {
-	if(worker)
-		return;
-
-	worker = new NDnsWorker(this, host.latin1());
-	worker->start();
+	stop();
+	if(!man)
+		man = new NDnsManager;
+	man->resolve(this, host);
 }
 
 //!
@@ -135,13 +258,8 @@ void NDns::resolve(const QString &host)
 //! \note This will not stop the underlying system call, which must finish before the next lookup will proceed.
 void NDns::stop()
 {
-	if ( worker ) {
-		workerCancelled.lock();
-		worker->cancelled = true;
-		workerCancelled.unlock();
-	}
-
-	worker = 0;
+	if(man)
+		man->stop(this);
 }
 
 //!
@@ -149,7 +267,7 @@ void NDns::stop()
 //! \sa resultsReady()
 uint NDns::result() const
 {
-	return v_result;
+	return addr.ip4Addr();
 }
 
 //!
@@ -157,49 +275,29 @@ uint NDns::result() const
 //! \sa resultsReady()
 QString NDns::resultString() const
 {
-	return v_resultString;
+	return addr.toString();
 }
 
 //!
 //! Returns TRUE if busy resolving a hostname.
 bool NDns::isBusy() const
 {
-	return worker ? true: false;
+	if(!man)
+		return false;
+	return man->isBusy(this);
 }
 
-bool NDns::event(QEvent *e)
+void NDns::finished(const QHostAddress &a)
 {
-	if(e->type() == QEvent::User) {
-		NDnsWorkerEvent *we = (NDnsWorkerEvent *)e;
-		we->worker()->wait(); // ensure that the thread is terminated
-
-		if ( worker == we->worker() ) {
-			if(worker->success) {
-				v_result = worker->addr;
-				v_resultString = worker->addrString;
-			}
-			else {
-				v_result = 0;
-				v_resultString = "";
-			}
-
-			emit resultsReady();
-		}
-
-		delete we->worker();
-		worker = 0;
-
-		return true;
-	}
-	return false;
+	addr = a;
+	resultsReady();
 }
 
 //----------------------------------------------------------------------------
 // NDnsWorkerEvent
 //----------------------------------------------------------------------------
-
 NDnsWorkerEvent::NDnsWorkerEvent(NDnsWorker *_p)
-:QEvent(QEvent::User)
+:QCustomEvent(WorkerEvent)
 {
 	p = _p;
 }
@@ -212,48 +310,44 @@ NDnsWorker *NDnsWorkerEvent::worker() const
 //----------------------------------------------------------------------------
 // NDnsWorker
 //----------------------------------------------------------------------------
-
 NDnsWorker::NDnsWorker(QObject *_par, const QCString &_host)
 {
 	success = cancelled = false;
 	par = _par;
-	host = _host;
+	host = _host.copy(); // do we need this to avoid sharing across threads?
 }
-
-static QMutex wm;
 
 void NDnsWorker::run()
 {
-	// lock during the gethostbyname call (anything that returns data into a static buffer is obviously not thread-safe)
-	QMutexLocker locker( &wm );
+	hostent *h = 0;
 
-	workerCancelled.lock();
+#ifdef HAVE_GETHOSTBYNAME_R
+	hostent buf;
+	char char_buf[1024];
+	int err;
+	gethostbyname_r(host.data(), &buf, char_buf, sizeof(char_buf), &h, &err);
+#else
+	// lock for gethostbyname
+	QMutexLocker locker(workerMutex);
+
+	// check for cancel
+	workerCancelled->lock();
 	bool cancel = cancelled;
-	workerCancelled.unlock();
+	workerCancelled->unlock();
 
-	if ( !cancel ) {
-		//qWarning("resolving [%s]", host.data());
-		hostent *h;
+	if(!cancel)
 		h = gethostbyname(host.data());
-		//qWarning("done.");
-		if(!h) {
-			//qWarning("error");
-			success = false;
-			QApplication::postEvent(par, new NDnsWorkerEvent(this));
-			return;
-		}
+#endif
 
-		in_addr a = *((struct in_addr *)h->h_addr_list[0]);
-		addr = ntohl(a.s_addr);
-		addrString = inet_ntoa(a);
-
-		//qWarning("success: [%s]", addrString.latin1());
-		success = true;
-	}
-	else {
-		//qWarning("cancelled.");
+	if(!h) {
 		success = false;
+		QApplication::postEvent(par, new NDnsWorkerEvent(this));
+		return;
 	}
+
+	in_addr a = *((struct in_addr *)h->h_addr_list[0]);
+	addr.setAddress(ntohl(a.s_addr));
+	success = true;
 
 	QApplication::postEvent(par, new NDnsWorkerEvent(this));
 }

@@ -24,8 +24,11 @@
 #include<qobject.h>
 #include<qcstring.h>
 #include<qthread.h>
+#include<qmutex.h>
+#include<qhostaddress.h>
 
 class NDnsWorker;
+class NDnsManager;
 
 class NDns : public QObject
 {
@@ -44,15 +47,35 @@ public:
 signals:
 	void resultsReady();
 
+private:
+	QHostAddress addr;
+
+	friend class NDnsManager;
+	void finished(const QHostAddress &);
+};
+
+class NDnsManager : public QObject
+{
+	Q_OBJECT
+public:
+	~NDnsManager();
+	class Item;
+
 //! \if _hide_doc_
 protected:
 	bool event(QEvent *);
 //! \endif
 
 private:
-	uint v_result;
-	QString v_resultString;
-	NDnsWorker *worker;
+	class Private;
+	Private *d;
+
+	friend class NDns;
+	NDnsManager();
+	void resolve(NDns *self, const QString &name);
+	void stop(NDns *self);
+	bool isBusy(const NDns *self) const;
+	void tryDestroy();
 };
 
 #endif
