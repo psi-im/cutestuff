@@ -23,6 +23,7 @@
 #include<qcstring.h>
 #include<qtimer.h>
 #include<qdns.h>
+#include"safedelete.h"
 #include"ndns.h"
 
 // CS_NAMESPACE_BEGIN
@@ -68,6 +69,7 @@ public:
 	QValueList<QDns::Server> servers;
 
 	QTimer t;
+	SafeDelete sd;
 };
 
 SrvResolver::SrvResolver(QObject *parent)
@@ -127,7 +129,7 @@ void SrvResolver::stop()
 		d->t.stop();
 	if(d->qdns) {
 		d->qdns->disconnect(this);
-		d->qdns->deleteLater();
+		d->sd.deleteLater(d->qdns);
 		d->qdns = 0;
 	}
 	if(d->ndns.isBusy())
@@ -182,12 +184,14 @@ void SrvResolver::qdns_done()
 		return;
 	d->t.stop();
 
+	SafeDeleteLock s(&d->sd);
+
 	// grab the server list and destroy the qdns object
 	QValueList<QDns::Server> list;
 	if(d->qdns->recordType() == QDns::Srv)
 		list = d->qdns->servers();
 	d->qdns->disconnect(this);
-	d->qdns->deleteLater();
+	d->sd.deleteLater(d->qdns);
 	d->qdns = 0;
 
 	if(list.isEmpty()) {
@@ -208,6 +212,8 @@ void SrvResolver::qdns_done()
 
 void SrvResolver::ndns_done()
 {
+	SafeDeleteLock s(&d->sd);
+
 	uint r = d->ndns.result();
 	int port = d->servers.first().port;
 	d->servers.remove(d->servers.begin());
@@ -233,6 +239,8 @@ void SrvResolver::ndns_done()
 
 void SrvResolver::t_timeout()
 {
+	SafeDeleteLock s(&d->sd);
+
 	stop();
 	resultsReady();
 }

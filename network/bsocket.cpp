@@ -23,6 +23,7 @@
 #include<qcstring.h>
 #include<qsocket.h>
 #include<qdns.h>
+#include"safedelete.h"
 #include"ndns.h"
 #include"srvresolver.h"
 
@@ -48,6 +49,7 @@ public:
 	QString host;
 	int port;
 	QHostAddress peerAddress;
+	SafeDelete sd;
 };
 
 BSocket::BSocket(QObject *parent)
@@ -70,7 +72,7 @@ void BSocket::reset(bool clear)
 {
 	if(d->qsock) {
 		d->qsock->disconnect(this);
-		d->qsock->deleteLater();
+		d->sd.deleteLater(d->qsock);
 		d->qsock = 0;
 	}
 	if(d->srv.isBusy())
@@ -226,6 +228,7 @@ void BSocket::qs_connected()
 #ifdef BS_DEBUG
 	fprintf(stderr, "BSocket: Connected.\n");
 #endif
+	SafeDeleteLock s(&d->sd);
 	connected();
 }
 
@@ -234,6 +237,7 @@ void BSocket::qs_connectionClosed()
 #ifdef BS_DEBUG
 	fprintf(stderr, "BSocket: Connection Closed.\n");
 #endif
+	SafeDeleteLock s(&d->sd);
 	reset();
 	connectionClosed();
 }
@@ -243,6 +247,7 @@ void BSocket::qs_delayedCloseFinished()
 #ifdef BS_DEBUG
 	fprintf(stderr, "BSocket: Delayed Close Finished.\n");
 #endif
+	SafeDeleteLock s(&d->sd);
 	reset();
 	delayedCloseFinished();
 }
@@ -269,6 +274,8 @@ void BSocket::qs_readyRead()
 #endif
 
 	appendRead(block);
+
+	SafeDeleteLock s(&d->sd);
 	readyRead();
 }
 
@@ -277,6 +284,7 @@ void BSocket::qs_bytesWritten(int x)
 #ifdef BS_DEBUG
 	fprintf(stderr, "BSocket: BytesWritten [%d].\n", x);
 #endif
+	SafeDeleteLock s(&d->sd);
 	bytesWritten(x);
 }
 
@@ -291,6 +299,7 @@ void BSocket::qs_error(int x)
 		return;
 	}
 
+	SafeDeleteLock s(&d->sd);
 	reset();
 	if(x == QSocket::ErrConnectionRefused)
 		error(ErrConnectionRefused);
