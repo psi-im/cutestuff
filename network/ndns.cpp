@@ -51,6 +51,7 @@
 #include"ndns.h"
 
 #include<qapplication.h>
+#include<qsocketdevice.h>
 #include<qptrlist.h>
 
 #ifdef Q_OS_UNIX
@@ -60,7 +61,7 @@
 #include<arpa/inet.h>
 #endif
 
-#ifdef Q_WS_WIN
+#ifdef Q_OS_WIN32
 #include<windows.h>
 #endif
 
@@ -102,6 +103,7 @@ static QMutex *workerMutex = 0;
 static QMutex *workerCancelled = 0;
 #endif
 static NDnsManager *man = 0;
+bool winsock_init = false;
 
 class NDnsManager::Item
 {
@@ -141,6 +143,14 @@ NDnsManager::NDnsManager()
 #ifndef HAVE_GETHOSTBYNAME_R
 	workerMutex = new QMutex;
 	workerCancelled = new QMutex;
+#endif
+
+#ifdef Q_OS_WIN32
+	if(!winsock_init) {
+		winsock_init = true;
+		QSocketDevice *sd = new QSocketDevice;
+		delete sd;
+	}
 #endif
 
 	d = new Private;
