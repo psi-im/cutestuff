@@ -5,6 +5,8 @@
 #include"network/bsocket.h"
 #include"network/httpconnect.h"
 #include"network/socksclient.h"
+#include"sasl/qsasl.h"
+#include"util/base64.h"
 
 #include<stdio.h>
 
@@ -16,6 +18,7 @@ public:
 	ByteStream *bs;
 	BConsole *c;
 	int mode;
+	QSASL sasl;
 };
 
 App::App(int mode, const QString &host, int port, const QString &serv, const QString &proxy_host, int proxy_port, const QString &proxy_user, const QString &proxy_pass)
@@ -63,6 +66,18 @@ App::App(int mode, const QString &host, int port, const QString &serv, const QSt
 			s->setAuth(proxy_user, proxy_pass);
 		s->connectToHost(proxy_host, proxy_port, host, port);
 	}
+
+	/*d->sasl.setServiceHost("jabber", "cataclysm.cx");
+	d->sasl.setUserPass("rob", "");
+	QStringList list;
+	list += "DIGEST-MD5";
+	list += "PLAIN";
+	d->sasl.begin(list);
+	QString str =
+	  "cmVhbG09ImNhdGFjbHlzbS5jeCIsbm9uY2U9Ik9BNk1HOXRFUUdtMmhoIi"
+	  "xxb3A9ImF1dGgiLGNoYXJzZXQ9dXRmLTgsYWxnb3JpdGhtPW1kNS1zZXNz";
+	QByteArray a = Base64::stringToArray(str);
+	d->sasl.putChallenge(a);*/
 }
 
 App::~App()

@@ -98,7 +98,8 @@ void BConsole::sn_read()
 
 void BConsole::sn_write()
 {
-	tryWrite();
+	if(bytesToWrite() > 0)
+		tryWrite();
 	if(bytesToWrite() == 0 && d->closing) {
 		d->closing = false;
 		d->closed = true;

@@ -21,6 +21,7 @@
 #include"socksclient.h"
 
 #include<qhostaddress.h>
+#include<qstringlist.h>
 #include<netinet/in.h>
 #include"../network/bsocket.h"
 
@@ -104,7 +105,20 @@ static QByteArray spc_connectRequest(const QHostAddress &addr, unsigned short po
 		at += 4;
 	}
 	else {
-		// TODO: support requests with IPv6 addresses
+		a[at++] = 0x04;
+		Q_UINT8 a6[16];
+		QStringList s6 = QStringList::split(':', addr.toString(), true);
+		int at = 0;
+		Q_UINT16 c;
+		bool ok;
+		for(QStringList::ConstIterator it = s6.begin(); it != s6.end(); ++it) {
+			c = (*it).toInt(&ok, 16);
+			a6[at++] = (c >> 8);
+			a6[at++] = c & 0xff;
+		}
+		a.resize(at+16);
+		memcpy(a.data() + at, a6, 16);
+		at += 16;
 	}
 
 	// port
@@ -187,7 +201,12 @@ static bool sps_reply(QByteArray *from, SPSS_REPLY *s)
 		host = QString::fromLatin1(cs);
 	}
 	else if(atype == 0x04) {
-		// TODO: support replies with IPv6 addresses
+		full_len += 16;
+		if((int)from->size() < full_len)
+			return false;
+		Q_UINT8 a6[16];
+		memcpy(a6, from->data() + 4, 16);
+		addr.setAddress(a6);
 	}
 
 	full_len += 2;
@@ -254,10 +273,9 @@ void SocksClient::reset(bool clear)
 {
 	if(d->sock.isOpen())
 		d->sock.close();
-	if(clear) {
+	if(clear)
 		clearReadBuffer();
-		d->recvBuf.resize(0);
-	}
+	d->recvBuf.resize(0);
 	d->active = false;
 }
 
@@ -376,15 +394,12 @@ void SocksClient::sock_readyRead()
 		if(d->step == StepVersion) {
 			SPSS_VERSION s;
 			if(sps_version(&d->recvBuf, &s)) {
-				if(s.version != 0x05) {
-					// TODO
-					return;
-				}
-				if(s.method == 0xff) {
+				if(s.version != 0x05 || s.method == 0xff) {
 #ifdef PROX_DEBUG
-					fprintf(stderr, "SocksClient: Server does not accept any method\n");
+					fprintf(stderr, "SocksClient: Method selection failed\n");
 #endif
-					// TODO
+					reset(true);
+					error(ErrProxyNeg);
 					return;
 				}
 
@@ -405,17 +420,25 @@ void SocksClient::sock_readyRead()
 #ifdef PROX_DEBUG
 					fprintf(stderr, "SocksClient: Server wants to use unknown method '%02x'\n", s.method);
 #endif
+					reset(true);
+					error(ErrProxyNeg);
 					return;
 				}
 
 				if(d->authMethod == AuthNone) {
-					d->step = StepRequest;
-					d->sock.write(spc_connectRequest(d->real_host, d->real_port));
+					// no auth, go straight to the request
+					do_request();
+				}
+				else if(d->authMethod == AuthGSSAPI) {
+#ifdef PROX_DEBUG
+					fprintf(stderr, "SocksClient: Authenticating [GSSAPI] ...\n");
+#endif
+					// TODO: auth using GSSAPI
 				}
 				else if(d->authMethod == AuthUsername) {
 					d->step = StepAuth;
 #ifdef PROX_DEBUG
-					fprintf(stderr, "SocksClient: Authenticating ...\n");
+					fprintf(stderr, "SocksClient: Authenticating [Username] ...\n");
 #endif
 					d->sock.write(spc_authUsername(d->user.latin1(), d->pass.latin1()));
 				}
@@ -426,19 +449,17 @@ void SocksClient::sock_readyRead()
 				SPSS_AUTHUSERNAME s;
 				if(sps_authUsername(&d->recvBuf, &s)) {
 					if(s.version != 0x01) {
-						// TODO: error
+						reset(true);
+						error(ErrProxyNeg);
 						return;
 					}
 					if(!s.success) {
-						// TODO: failed login
+						reset(true);
+						error(ErrProxyAuth);
 						return;
 					}
 
-#ifdef PROX_DEBUG
-					fprintf(stderr, "SocksClient: Requesting ...\n");
-#endif
-					d->step = StepRequest;
-					d->sock.write(spc_connectRequest(d->real_host, d->real_port));
+					do_request();
 				}
 			}
 		}
@@ -449,6 +470,13 @@ void SocksClient::sock_readyRead()
 #ifdef PROX_DEBUG
 					fprintf(stderr, "SocksClient: << Error >> [%02x]\n", s.reply);
 #endif
+					reset(true);
+					if(s.reply == 0x04)
+						error(ErrHostNotFound);
+					else if(s.reply == 0x05)
+						error(ErrConnectionRefused);
+					else
+						error(ErrProxyNeg);
 					return;
 				}
 
@@ -470,6 +498,15 @@ void SocksClient::sock_readyRead()
 		appendRead(block);
 		readyRead();
 	}
+}
+
+void SocksClient::do_request()
+{
+#ifdef PROX_DEBUG
+	fprintf(stderr, "SocksClient: Requesting ...\n");
+#endif
+	d->step = StepRequest;
+	d->sock.write(spc_connectRequest(d->real_host, d->real_port));
 }
 
 void SocksClient::sock_bytesWritten(int x)

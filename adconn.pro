@@ -11,6 +11,7 @@ HEADERS = \
 	network/bsocket.h \
 	network/httpconnect.h \
 	network/socksclient.h \
+	sasl/qsasl.h \
 	adconn.h
 
 SOURCES = \
@@ -21,5 +22,8 @@ SOURCES = \
 	network/bsocket.cpp \
 	network/httpconnect.cpp \
 	network/socksclient.cpp \
+	sasl/qsasl.cpp \
 	adconn.cpp
+
+LIBS += -lsasl2
 

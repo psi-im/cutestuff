@@ -1,8 +1,9 @@
 code:
-  socksclient: ipv6 replies, error handling, GSS-API
-  httppoll
+  socksclient: GSS-API
+  sasl encryption??
   securestream
   merge sha1
+  httppoll
   idle
 
 port:

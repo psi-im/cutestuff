@@ -58,6 +58,7 @@ private:
 	Private *d;
 
 	void reset(bool clear=false);
+	void do_request();
 };
 
 #endif
