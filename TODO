@@ -7,10 +7,11 @@ code:
   qssl: server support, certificate information, hostname verify?
   securestream: wrap QSSLFilter as ByteStream
   qrandom: better randomness (use /dev/urandom on unix, srand on windows)
-  qopenpgp
+  floating TODOs in gnupg, gpgproc ?
   import misha's code
   finish globalaccel
   idle
+  trayicon
 
 port:
   win32: bconsole
