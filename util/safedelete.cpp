@@ -97,7 +97,7 @@ SafeDeleteLater::SafeDeleteLater()
 {
 	list.setAutoDelete(true);
 	self = this;
-	QTimer::singleShot(0, this, SLOT(deleteAll()));
+	QTimer::singleShot(0, this, SLOT(explode()));
 }
 
 SafeDeleteLater::~SafeDeleteLater()
