@@ -436,6 +436,16 @@ bool Encrypted::encryptKey(const Cipher::Key &data, const Cipher::Key &key)
 	return true;
 }
 
+/*bool Encrypted::encryptKey(const Cipher::Key &data, const Cipher::Key &key)
+{
+	if(!sym_keywrap(data.data(), key, &v_cval))
+		return false;
+	v_type = Key;
+	v_dataType = Arbitrary;
+	v_method = cipherTypeToMethod(key.type());
+	return true;
+}*/
+
 QByteArray Encrypted::decryptData(const Cipher::Key &key) const
 {
 	QByteArray result;

@@ -21,9 +21,8 @@
 #include"cipher.h"
 
 #include<openssl/evp.h>
+#include<openssl/rsa.h>
 #include"bytestream.h"
-
-using namespace Cipher;
 
 static bool lib_encryptArray(const EVP_CIPHER *type, const QByteArray &buf, const QByteArray &key, const QByteArray &iv, bool pad, QByteArray *out)
 {
@@ -111,19 +110,19 @@ static bool lib_generateKeyIV(const EVP_CIPHER *type, const QByteArray &data, co
 	return true;
 }
 
-static const EVP_CIPHER * typeToCIPHER(Type t)
+static const EVP_CIPHER * typeToCIPHER(Cipher::Type t)
 {
-	if(t == TripleDES)
+	if(t == Cipher::TripleDES)
 		return EVP_des_ede3_cbc();
-	else if(t == AES_128)
+	else if(t == Cipher::AES_128)
 		return EVP_aes_128_cbc();
-	else if(t == AES_256)
+	else if(t == Cipher::AES_256)
 		return EVP_aes_256_cbc();
 	else
 		return 0;
 }
 
-Key Cipher::generateKey(Type t)
+Cipher::Key Cipher::generateKey(Type t)
 {
 	Key k;
 	const EVP_CIPHER *type = typeToCIPHER(t);
@@ -186,4 +185,130 @@ QByteArray Cipher::decrypt(const QByteArray &buf, const Key &key, const QByteArr
 	if(ok)
 		*ok = true;
 	return out;
+}
+
+
+class RSAKey::Private
+{
+public:
+	Private() {}
+
+	RSA *rsa;
+	int ref;
+};
+
+RSAKey::RSAKey()
+{
+	d = 0;
+}
+
+RSAKey::RSAKey(const RSAKey &from)
+{
+	d = 0;
+	*this = from;
+}
+
+RSAKey & RSAKey::operator=(const RSAKey &from)
+{
+	free();
+
+	if(from.d) {
+		d = from.d;
+		++d->ref;
+	}
+
+	return *this;
+}
+
+RSAKey::~RSAKey()
+{
+	free();
+}
+
+bool RSAKey::isNull() const
+{
+	return d ? false: true;
+}
+
+void * RSAKey::data() const
+{
+	if(d)
+		return (void *)d->rsa;
+	else
+		return 0;
+}
+
+void RSAKey::setData(void *p)
+{
+	free();
+
+	if(p) {
+		d = new Private;
+		d->ref = 1;
+		d->rsa = (RSA *)p;
+	}
+}
+
+void RSAKey::free()
+{
+	if(!d)
+		return;
+
+	--d->ref;
+	if(d->ref <= 0) {
+		RSA_free(d->rsa);
+		delete d;
+	}
+	d = 0;
+}
+
+RSAKey generateRSAKey()
+{
+	RSA *rsa = RSA_generate_key(1024, RSA_F4, NULL, NULL);
+	RSAKey key;
+	if(rsa)
+		key.setData(rsa);
+	return key;
+}
+
+QByteArray encryptRSA(const QByteArray &buf, const RSAKey &key, bool *ok)
+{
+	if(ok)
+		*ok = false;
+
+	int size = RSA_size((RSA *)key.data());
+	int flen = buf.size();
+	if(flen >= size - 11)
+		flen = size - 11;
+	QByteArray result(size);
+	unsigned char *from = (unsigned char *)buf.data();
+	unsigned char *to = (unsigned char *)result.data();
+	int r = RSA_public_encrypt(flen, from, to, (RSA *)key.data(), RSA_PKCS1_PADDING);
+	if(r == -1)
+		return QByteArray();
+	result.resize(r);
+
+	if(ok)
+		*ok = true;
+	return result;
+}
+
+QByteArray decryptRSA(const QByteArray &buf, const RSAKey &key, bool *ok)
+{
+	if(ok)
+		*ok = false;
+
+	int size = RSA_size((RSA *)key.data());
+	int flen = buf.size();
+	QByteArray result(size);
+	unsigned char *from = (unsigned char *)buf.data();
+	unsigned char *to = (unsigned char *)result.data();
+	int r = RSA_private_decrypt(flen, from, to, (RSA *)key.data(), RSA_PKCS1_PADDING);
+	if(r == -1)
+		return QByteArray();
+	result.resize(r);
+
+	if(ok)
+		*ok = true;
+	return result;
 }

@@ -51,4 +51,27 @@ namespace Cipher
 	QByteArray decrypt(const QByteArray &, const Key &, const QByteArray &iv, bool pad, bool *ok=0);
 }
 
+class RSAKey
+{
+public:
+	RSAKey();
+	RSAKey(const RSAKey &);
+	RSAKey & operator=(const RSAKey &);
+	~RSAKey();
+
+	bool isNull() const;
+	void *data() const;
+	void setData(void *);
+
+private:
+	class Private;
+	Private *d;
+
+	void free();
+};
+
+RSAKey generateRSAKey();
+QByteArray encryptRSA(const QByteArray &buf, const RSAKey &key, bool *ok=0);
+QByteArray decryptRSA(const QByteArray &buf, const RSAKey &key, bool *ok=0);
+
 #endif
