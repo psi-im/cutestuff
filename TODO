@@ -4,6 +4,7 @@ test:
   xmlenc
 
 code:
+  bsocket: 'maintain' internal sockets even after destruct (till flush)
   qssl: server support
   securestream: wrap QSSLFilter as ByteStream
   qrandom: better randomness (use /dev/urandom on unix, srand on windows)
