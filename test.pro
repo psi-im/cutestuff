@@ -2,13 +2,15 @@ CONFIG += thread
 TARGET  = test
 
 HEADERS = \
-	securesocket/ndns.h \
-	securesocket/securesocket.h \
-	util/bytestream.h
+	util/bytestream.h \
+	network/ndns.h \
+	network/bsocket.h \
+	network/httpconnect.h
 
 SOURCES = \
-	test.cpp \
-	securesocket/ndns.cpp \
-	securesocket/securesocket.cpp \
-	util/bytestream.cpp
+	util/bytestream.cpp \
+	network/ndns.cpp \
+	network/bsocket.cpp \
+	network/httpconnect.cpp \
+	test.cpp
 

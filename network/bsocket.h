@@ -1,5 +1,5 @@
 /*
- * bytestream.h - base class for bytestreams
+ * bsocket.h - QSocket wrapper based on Bytestream with SRV DNS support
  * Copyright (C) 2001, 2002  Justin Karneges
  *
  * This library is free software; you can redistribute it and/or
@@ -18,60 +18,54 @@
  *
  */
 
-#ifndef CS_BYTESTREAM_H
-#define CS_BYTESTREAM_H
+#ifndef CS_BSOCKET_H
+#define CS_BSOCKET_H
 
 #include<qobject.h>
+#include"../util/bytestream.h"
 
-class ByteStream : public QObject
+class BSocket : public ByteStream
 {
 	Q_OBJECT
 public:
-	ByteStream(QObject *parent=0);
-	virtual ~ByteStream()=0;
+	enum Error { ErrConnectionRefused, ErrHostNotFound, ErrSocketRead };
+	enum State { Idle, HostLookup, Connecting, Connected, Closing };
+	BSocket(QObject *parent=0);
+	~BSocket();
 
-	virtual bool isOpen() const;
-	virtual void close();
-	virtual int write(const QByteArray &)=0;
-	virtual QByteArray read(int bytes=0)=0;
-	virtual int bytesAvailable() const;
-	virtual int bytesToWrite() const;
+	void connectToHost(const QString &host, Q_UINT16 port);
+	void connectToServer(const QString &srv, const QString &type);
+	void setSocket(int);
+	int state() const;
 
-signals:
-	void connectionClosed();
-	void delayedCloseFinished();
-	void readyRead();
-	void bytesWritten(int);
-	void error(int);
-};
-
-class QSSLFilter;
-
-class SecureStream : public ByteStream
-{
-	Q_OBJECT
-public:
-	SecureStream(ByteStream *, QSSLFilter *, QObject *parent=0);
-	~SecureStream();
-
-	ByteStream *byteStream() const;
-
-	void startHandshake();
-	void waitForHandshake();
-
+	// from ByteStream
 	bool isOpen() const;
 	void close();
-	int write(const QByteArray &)=0;
-	QByteArray read(int bytes=0)=0;
+	int write(const QByteArray &);
+	QByteArray read(int bytes=0);
 	int bytesAvailable() const;
 	int bytesToWrite() const;
 
 signals:
-	void handshaken();
+	void connected();
+
+private slots:
+	void qs_connected();
+	void qs_connectionClosed();
+	void qs_delayedCloseFinished();
+	void qs_readyRead();
+	void qs_bytesWritten(int);
+	void qs_error(int);
+	void qdns_done();
+	void ndns_done();
 
 private:
 	class Private;
 	Private *d;
+
+	void reset(bool clear=false);
+	void do_connect();
+	void ensureSocket();
 };
 
 #endif

@@ -1,4 +1,6 @@
 code:
+  bytestream - finish QSSL support
+  httpconnect
   idle
 
 document:

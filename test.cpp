@@ -1,5 +1,6 @@
 #include<qapplication.h>
-#include"securesocket/securesocket.h"
+#include"network/bsocket.h"
+#include"network/httpconnect.h"
 
 int main(int argc, char **argv)
 {
@@ -7,8 +8,9 @@ int main(int argc, char **argv)
 		return 0;
 
 	QApplication app(argc, argv);
-	SecureSocket *s = new SecureSocket;
+	BSocket *s = new BSocket;
 	QObject::connect(s, SIGNAL(error(int)), &app, SLOT(quit()));
+	QObject::connect(s, SIGNAL(connectionClosed()), &app, SLOT(quit()));
 
 	if(argc > 2)
 		s->connectToHost(argv[1], atoi(argv[2]));
