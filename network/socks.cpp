@@ -731,7 +731,10 @@ void SocksClient::continueIncoming()
 		}
 		else if(r == 1) {
 			d->waiting = true;
-			d->rhost = s.host;
+			if(!s.host.isEmpty())
+				d->rhost = s.host;
+			else
+				d->rhost = s.addr.toString();
 			d->rport = s.port;
 			incomingRequest(d->rhost, d->rport);
 		}
