@@ -23,6 +23,7 @@
 #include<qstringlist.h>
 #include<qurl.h>
 #include<qtimer.h>
+#include<qguardedptr.h>
 #include<qca.h>
 #include<stdlib.h>
 #include"bsocket.h"
@@ -36,7 +37,7 @@
 #include"td.h"
 #endif
 
-#define POLL_KEYS 256
+#define POLL_KEYS 64
 
 // CS_NAMESPACE_BEGIN
 
@@ -257,6 +258,9 @@ void HttpPoll::http_result()
 
 	d->ident = id;
 
+	// check for death :)
+	QGuardedPtr<HttpPoll> self = this;
+
 	// connecting
 	if(d->state == 1) {
 		d->state = 2;
@@ -271,10 +275,16 @@ void HttpPoll::http_result()
 		}
 	}
 
+	if(!self)
+		return;
+
 	if(!block.isEmpty()) {
 		appendRead(block);
 		readyRead();
 	}
+
+	if(!self)
+		return;
 
 	if(bytesToWrite() > 0) {
 		if(!d->http.isActive())

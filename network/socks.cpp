@@ -441,18 +441,12 @@ void SocksClient::write(const QByteArray &buf)
 
 QByteArray SocksClient::read(int bytes)
 {
-	if(d->active)
-		return ByteStream::read(bytes);
-	else
-		return QByteArray();
+	return ByteStream::read(bytes);
 }
 
 int SocksClient::bytesAvailable() const
 {
-	if(d->active)
-		return ByteStream::bytesAvailable();
-	else
-		return 0;
+	return ByteStream::bytesAvailable();
 }
 
 int SocksClient::bytesToWrite() const

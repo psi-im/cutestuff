@@ -92,6 +92,7 @@ public:
 	bool inHeader;
 	QStringList headerLines;
 
+	int toWrite;
 	bool active;
 };
 
@@ -171,18 +172,12 @@ void HttpConnect::write(const QByteArray &buf)
 
 QByteArray HttpConnect::read(int bytes)
 {
-	if(d->active)
-		return ByteStream::read(bytes);
-	else
-		return QByteArray();
+	return ByteStream::read(bytes);
 }
 
 int HttpConnect::bytesAvailable() const
 {
-	if(d->active)
-		return ByteStream::bytesAvailable();
-	else
-		return 0;
+	return ByteStream::bytesAvailable();
 }
 
 int HttpConnect::bytesToWrite() const
@@ -215,6 +210,7 @@ void HttpConnect::sock_connected()
 	QCString cs = s.utf8();
 	QByteArray block(cs.length());
 	memcpy(block.data(), cs.data(), block.size());
+	d->toWrite = block.size();
 	d->sock.write(block);
 }
 
@@ -293,6 +289,7 @@ void HttpConnect::sock_readyRead()
 						appendRead(d->recvBuf);
 						d->recvBuf.resize(0);
 						readyRead();
+						return;
 					}
 				}
 				else {
@@ -332,12 +329,21 @@ void HttpConnect::sock_readyRead()
 	else {
 		appendRead(block);
 		readyRead();
+		return;
 	}
 }
 
 void HttpConnect::sock_bytesWritten(int x)
 {
-	if(d->active)
+	if(d->toWrite > 0) {
+		int size = x;
+		if(d->toWrite < x)
+			size = d->toWrite;
+		d->toWrite -= size;
+		x -= size;
+	}
+
+	if(d->active && x > 0)
 		bytesWritten(x);
 }
 
