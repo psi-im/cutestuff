@@ -844,6 +844,15 @@ void SocksClient::requestGrant(bool b)
 	}
 }
 
+QHostAddress SocksClient::peerAddress() const
+{
+	return d->sock.peerAddress();
+}
+
+Q_UINT16 SocksClient::peerPort() const
+{
+	return d->sock.peerPort();
+}
 
 //----------------------------------------------------------------------------
 // SocksServer
@@ -889,6 +898,11 @@ void SocksServer::stop()
 int SocksServer::port() const
 {
 	return d->serv.port();
+}
+
+QHostAddress SocksServer::address() const
+{
+	return d->serv.address();
 }
 
 SocksClient *SocksServer::takeIncoming()
