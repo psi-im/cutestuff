@@ -1,5 +1,5 @@
 /*
- * httpconnect.h - HTTP "CONNECT" proxy
+ * socksclient.h - SOCKS5 TCP proxy
  * Copyright (C) 2003  Justin Karneges
  *
  * This library is free software; you can redistribute it and/or
@@ -18,18 +18,18 @@
  *
  */
 
-#ifndef CS_HTTPCONNECT_H
-#define CS_HTTPCONNECT_H
+#ifndef CS_SOCKSCLIENT_H
+#define CS_SOCKSCLIENT_H
 
 #include"../util/bytestream.h"
 
-class HttpConnect : public ByteStream
+class SocksClient : public ByteStream
 {
 	Q_OBJECT
 public:
 	enum Error { ErrConnectionRefused = ErrCustom, ErrHostNotFound, ErrProxyConnect, ErrProxyNeg, ErrProxyAuth };
-	HttpConnect(QObject *parent=0);
-	~HttpConnect();
+	SocksClient(QObject *parent=0);
+	~SocksClient();
 
 	void setAuth(const QString &user, const QString &pass="");
 	void connectToHost(const QString &proxyHost, int proxyPort, const QString &host, int port);

@@ -16,6 +16,7 @@ signals:
 private slots:
 	void st_connected();
 	void st_connectionClosed();
+	void st_delayedCloseFinished();
 	void st_readyRead();
 	void st_error(int);
 
@@ -28,4 +29,3 @@ private:
 };
 
 #endif
-

@@ -22,6 +22,7 @@
 
 #include<qsocketnotifier.h>
 #include<unistd.h>
+#include<fcntl.h>
 
 //----------------------------------------------------------------------------
 // BConsole
@@ -31,68 +32,54 @@ class BConsole::Private
 public:
 	Private() {}
 
-	QSocketNotifier *sn;
-	QByteArray sendBuf, recvBuf;
+	QSocketNotifier *r, *w;
+	bool closing;
+	bool closed;
 };
 
 BConsole::BConsole(QObject *parent)
 :ByteStream(parent)
 {
 	d = new Private;
-	d->sn = new QSocketNotifier(0, QSocketNotifier::Read);
-	connect(d->sn, SIGNAL(activated(int)), SLOT(sn_dataReady()));
+	d->closing = false;
+	d->closed = false;
+
+	// set stdin/stdout to non-block
+	fcntl(0, F_SETFL, O_NONBLOCK);
+	fcntl(1, F_SETFL, O_NONBLOCK);
+
+	d->r = new QSocketNotifier(0, QSocketNotifier::Read);
+	connect(d->r, SIGNAL(activated(int)), SLOT(sn_read()));
+	d->w = new QSocketNotifier(1, QSocketNotifier::Write);
+	connect(d->w, SIGNAL(activated(int)), SLOT(sn_write()));
 }
 
 BConsole::~BConsole()
 {
-	delete d->sn;
+	delete d->w;
+	delete d->r;
 	delete d;
 }
 
 bool BConsole::isOpen() const
 {
-	return false;
+	return (!d->closing && !d->closed);
 }
 
 void BConsole::close()
 {
-}
+	if(d->closing || d->closed)
+		return;
 
-int BConsole::write(const QByteArray &a)
-{
-	int r = ::write(1, a.data(), a.size());
-	return r;
-}
-
-QByteArray BConsole::read(int bytes)
-{
-	QByteArray a;
-	if(bytes == 0) {
-		a = d->recvBuf.copy();
-		d->recvBuf.resize(0);
-	}
+	if(bytesToWrite() > 0)
+		d->closing = true;
 	else {
-		a.resize(bytes);
-		char *r = d->recvBuf.data();
-		int newsize = d->recvBuf.size()-bytes;
-		memcpy(a.data(), r, bytes);
-		memmove(r, r+bytes, newsize);
-		d->recvBuf.resize(newsize);
+		::fclose(stdout);
+		d->closed = true;
 	}
-	return a;
 }
 
-int BConsole::bytesAvailable() const
-{
-	return d->recvBuf.size();
-}
-
-int BConsole::bytesToWrite() const
-{
-	return 0;
-}
-
-void BConsole::sn_dataReady()
+void BConsole::sn_read()
 {
 	QByteArray a(1024);
 	int r = ::read(0, a.data(), a.size());
@@ -104,10 +91,34 @@ void BConsole::sn_dataReady()
 	}
 	else {
 		a.resize(r);
-		int oldsize = d->recvBuf.size();
-		d->recvBuf.resize(oldsize + a.size());
-		memcpy(d->recvBuf.data() + oldsize, a.data(), a.size());
-
+		appendRead(a);
 		readyRead();
 	}
+}
+
+void BConsole::sn_write()
+{
+	tryWrite();
+	if(bytesToWrite() == 0 && d->closing) {
+		d->closing = false;
+		d->closed = true;
+		delayedCloseFinished();
+	}
+}
+
+int BConsole::tryWrite()
+{
+	// try a section of the write buffer
+	QByteArray a = takeWrite(1024, false);
+
+	// write it
+	int r = ::write(1, a.data(), a.size());
+	if(r < 0) {
+		error(ErrWrite);
+		return -1;
+	}
+
+	takeWrite(r);
+	bytesWritten(r);
+	return r;
 }

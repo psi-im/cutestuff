@@ -10,6 +10,7 @@ HEADERS = \
 	network/ndns.h \
 	network/bsocket.h \
 	network/httpconnect.h \
+	network/socksclient.h \
 	adconn.h
 
 SOURCES = \
@@ -19,5 +20,6 @@ SOURCES = \
 	network/ndns.cpp \
 	network/bsocket.cpp \
 	network/httpconnect.cpp \
+	network/socksclient.cpp \
 	adconn.cpp
 

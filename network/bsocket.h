@@ -28,7 +28,7 @@ class BSocket : public ByteStream
 {
 	Q_OBJECT
 public:
-	enum Error { ErrConnectionRefused, ErrHostNotFound, ErrSocketRead };
+	enum Error { ErrConnectionRefused = ErrCustom, ErrHostNotFound };
 	enum State { Idle, HostLookup, Connecting, Connected, Closing };
 	BSocket(QObject *parent=0);
 	~BSocket();
@@ -42,8 +42,6 @@ public:
 	bool isOpen() const;
 	void close();
 	int write(const QByteArray &);
-	QByteArray read(int bytes=0);
-	int bytesAvailable() const;
 	int bytesToWrite() const;
 
 signals:

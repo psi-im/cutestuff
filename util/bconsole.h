@@ -27,19 +27,18 @@ class BConsole : public ByteStream
 {
 	Q_OBJECT
 public:
-	enum Error { ErrRead };
 	BConsole(QObject *parent=0);
 	~BConsole();
 
 	bool isOpen() const;
 	void close();
-	int write(const QByteArray &);
-	QByteArray read(int bytes=0);
-	int bytesAvailable() const;
-	int bytesToWrite() const;
+
+protected:
+	int tryWrite();
 
 private slots:
-	void sn_dataReady();
+	void sn_read();
+	void sn_write();
 
 private:
 	class Private;

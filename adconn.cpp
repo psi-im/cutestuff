@@ -4,6 +4,7 @@
 #include"util/bconsole.h"
 #include"network/bsocket.h"
 #include"network/httpconnect.h"
+#include"network/socksclient.h"
 
 #include<stdio.h>
 
@@ -12,8 +13,7 @@ class App::Private
 public:
 	Private() {}
 
-	BSocket s;
-	HttpConnect h;
+	ByteStream *bs;
 	BConsole *c;
 	int mode;
 };
@@ -25,37 +25,49 @@ App::App(int mode, const QString &host, int port, const QString &serv, const QSt
 	d->c = new BConsole;
 	connect(d->c, SIGNAL(connectionClosed()), SLOT(con_connectionClosed()));
 	connect(d->c, SIGNAL(readyRead()), SLOT(con_readyRead()));
+	d->bs = 0;
 
 	d->mode = mode;
 
 	if(mode == 0 || mode == 1) {
-		connect(&d->s, SIGNAL(connected()), SLOT(st_connected()));
-		connect(&d->s, SIGNAL(connectionClosed()), SLOT(st_connectionClosed()));
-		connect(&d->s, SIGNAL(readyRead()), SLOT(st_readyRead()));
-		connect(&d->s, SIGNAL(error(int)), SLOT(st_error(int)));
+		BSocket *s = new BSocket;
+		d->bs = s;
+		connect(s, SIGNAL(connected()), SLOT(st_connected()));
+		connect(s, SIGNAL(error(int)), SLOT(st_error(int)));
 		if(mode == 0) {
 			fprintf(stderr, "adconn: Connecting to %s:%d ...\n", host.latin1(), port);
-			d->s.connectToHost(host, port);
+			s->connectToHost(host, port);
 		}
 		else {
 			fprintf(stderr, "adconn: Connecting to '%s' server at %s ...\n", serv.latin1(), host.latin1());
-			d->s.connectToServer(host, serv);
+			s->connectToServer(host, serv);
 		}
 	}
 	else if(mode == 2) {
-		connect(&d->h, SIGNAL(connected()), SLOT(st_connected()));
-		connect(&d->h, SIGNAL(connectionClosed()), SLOT(st_connectionClosed()));
-		connect(&d->h, SIGNAL(readyRead()), SLOT(st_readyRead()));
-		connect(&d->h, SIGNAL(error(int)), SLOT(st_error(int)));
+		HttpConnect *s = new HttpConnect;
+		d->bs = s;
+		connect(s, SIGNAL(connected()), SLOT(st_connected()));
+		connect(s, SIGNAL(error(int)), SLOT(st_error(int)));
 		fprintf(stderr, "adconn: Connecting to %s:%d via %s:%d (https)\n", host.latin1(), port, proxy_host.latin1(), proxy_port);
 		if(!proxy_user.isEmpty())
-			d->h.setAuth(proxy_user, proxy_pass);
-		d->h.connectToHost(proxy_host, proxy_port, host, port);
+			s->setAuth(proxy_user, proxy_pass);
+		s->connectToHost(proxy_host, proxy_port, host, port);
+	}
+	else if(mode == 3) {
+		SocksClient *s = new SocksClient;
+		d->bs = s;
+		connect(s, SIGNAL(connected()), SLOT(st_connected()));
+		connect(s, SIGNAL(error(int)), SLOT(st_error(int)));
+		fprintf(stderr, "adconn: Connecting to %s:%d via %s:%d (socks)\n", host.latin1(), port, proxy_host.latin1(), proxy_port);
+		if(!proxy_user.isEmpty())
+			s->setAuth(proxy_user, proxy_pass);
+		s->connectToHost(proxy_host, proxy_port, host, port);
 	}
 }
 
 App::~App()
 {
+	delete d->bs;
 	delete d->c;
 	delete d;
 }
@@ -63,6 +75,11 @@ App::~App()
 void App::st_connected()
 {
 	fprintf(stderr, "adconn: Connected\n");
+
+	// map the signals
+	connect(d->bs, SIGNAL(connectionClosed()), SLOT(st_connectionClosed()));
+	connect(d->bs, SIGNAL(delayedCloseFinished()), SLOT(st_delayedCloseFinished()));
+	connect(d->bs, SIGNAL(readyRead()), SLOT(st_readyRead()));
 }
 
 void App::st_connectionClosed()
@@ -71,13 +88,14 @@ void App::st_connectionClosed()
 	quit();
 }
 
+void App::st_delayedCloseFinished()
+{
+	quit();
+}
+
 void App::st_readyRead()
 {
-	QByteArray a;
-	if(d->mode == 0 || d->mode == 1)
-		a = d->s.read();
-	else if(d->mode == 2)
-		a = d->h.read();
+	QByteArray a = d->bs->read();
 	d->c->write(a);
 }
 
@@ -90,21 +108,15 @@ void App::st_error(int x)
 void App::con_connectionClosed()
 {
 	fprintf(stderr, "adconn: Closing.\n");
-	if(d->mode == 0 || d->mode == 1)
-		d->s.close();
-	else if(d->mode == 2)
-		d->h.close();
-
-	quit();
+	d->bs->close();
+	if(d->bs->bytesToWrite() == 0)
+		quit();
 }
 
 void App::con_readyRead()
 {
 	QByteArray a = d->c->read();
-	if(d->mode == 0 || d->mode == 1)
-		d->s.write(a);
-	else if(d->mode == 2)
-		d->h.write(a);
+	d->bs->write(a);
 }
 
 
@@ -114,9 +126,7 @@ int main(int argc, char **argv)
 
 	if(argc < 2) {
 		printf("usage: adconn [options] [host]\n");
-		//printf("\n");
 		printf("   [host] must be in the form 'host:port' or 'domain#server'\n");
-		//printf("\n");
 		printf("   Options:\n");
 		printf("     --proxy=[https|poll|socks],host:port\n");
 		printf("     --proxy-auth=user,pass\n");
@@ -173,8 +183,7 @@ int main(int argc, char **argv)
 					return 0;
 				}
 				else if(type == "socks") {
-					printf("proxy 'socks' not supported yet.\n");
-					return 0;
+					mode = 3;
 				}
 				else {
 					printf("no such proxy type '%s'\n", type.latin1());

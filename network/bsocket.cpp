@@ -66,7 +66,6 @@ public:
 
 	QSocket *qsock;
 	QDns *qdns;
-	QByteArray recvBuf;
 	int state;
 
 	NDns ndns;
@@ -104,7 +103,7 @@ void BSocket::reset(bool clear)
 	if(d->ndns.isBusy())
 		d->ndns.stop();
 	if(clear)
-		d->recvBuf.resize(0);
+		clearReadBuffer();
 	d->serverMode = false;
 	d->servers.clear();
 	d->state = Idle;
@@ -197,32 +196,9 @@ int BSocket::write(const QByteArray &a)
 	cs.resize(a.size()+1);
 	memcpy(cs.data(), a.data(), a.size());
 	QString s = QString::fromUtf8(cs);
-	fprintf(stderr, "BSocket: writing: {%s}\n", cs.data());
+	fprintf(stderr, "BSocket: writing [%d]: {%s}\n", a.size(), cs.data());
 #endif
 	return d->qsock->writeBlock(a.data(), a.size());
-}
-
-QByteArray BSocket::read(int bytes)
-{
-	QByteArray a;
-	if(bytes == 0) {
-		a = d->recvBuf.copy();
-		d->recvBuf.resize(0);
-	}
-	else {
-		a.resize(bytes);
-		char *r = d->recvBuf.data();
-		int newsize = d->recvBuf.size()-bytes;
-		memcpy(a.data(), r, bytes);
-		memmove(r, r+bytes, newsize);
-		d->recvBuf.resize(newsize);
-	}
-	return a;
-}
-
-int BSocket::bytesAvailable() const
-{
-	return d->recvBuf.size();
 }
 
 int BSocket::bytesToWrite() const
@@ -338,10 +314,7 @@ void BSocket::qs_readyRead()
 	fprintf(stderr, "BSocket: read [%d]: {%s}\n", block.size(), s.latin1());
 #endif
 
-	int oldsize = d->recvBuf.size();
-	d->recvBuf.resize(oldsize + block.size());
-	memcpy(d->recvBuf.data() + oldsize, block.data(), block.size());
-
+	appendRead(block);
 	readyRead();
 }
 
@@ -364,5 +337,5 @@ void BSocket::qs_error(int x)
 	else if(x == QSocket::ErrHostNotFound)
 		error(ErrHostNotFound);
 	else if(x == QSocket::ErrSocketRead)
-		error(ErrSocketRead);
+		error(ErrRead);
 }

@@ -1,11 +1,12 @@
 code:
+  socksclient: ipv6 replies, error handling, GSS-API
+  httppoll
   securestream
-  bconsole
-    writing / closing
-  adconn
-    if necessary, wait for delayedCloseFinished() before exiting
   merge sha1
   idle
+
+port:
+  win32: bconsole
 
 document:
   iconset

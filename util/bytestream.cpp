@@ -23,13 +23,23 @@
 //----------------------------------------------------------------------------
 // ByteStream
 //----------------------------------------------------------------------------
+class ByteStream::Private
+{
+public:
+	Private() {}
+
+	QByteArray readBuf, writeBuf;
+};
+
 ByteStream::ByteStream(QObject *parent)
 :QObject(parent)
 {
+	d = new Private;
 }
 
 ByteStream::~ByteStream()
 {
+	delete d;
 }
 
 bool ByteStream::isOpen() const
@@ -41,12 +51,112 @@ void ByteStream::close()
 {
 }
 
+int ByteStream::write(const QByteArray &a)
+{
+	if(!isOpen())
+		return -1;
+
+	bool doWrite = bytesToWrite() == 0 ? true: false;
+	appendWrite(a);
+	if(doWrite)
+		return tryWrite();
+	else
+		return 0;
+}
+
+QByteArray ByteStream::read(int bytes)
+{
+	return takeRead(bytes);
+}
+
 int ByteStream::bytesAvailable() const
 {
-	return 0;
+	return d->readBuf.size();
 }
 
 int ByteStream::bytesToWrite() const
 {
-	return 0;
+	return d->writeBuf.size();
+}
+
+int ByteStream::write(const QCString &cs)
+{
+	QByteArray block(cs.length());
+	memcpy(block.data(), cs.data(), block.size());
+	return write(block);
+}
+
+void ByteStream::clearReadBuffer()
+{
+	d->readBuf.resize(0);
+}
+
+void ByteStream::clearWriteBuffer()
+{
+	d->writeBuf.resize(0);
+}
+
+void ByteStream::appendRead(const QByteArray &block)
+{
+	appendArray(&d->readBuf, block);
+}
+
+void ByteStream::appendWrite(const QByteArray &block)
+{
+	appendArray(&d->writeBuf, block);
+}
+
+QByteArray ByteStream::takeRead(int size, bool del)
+{
+	return takeArray(&d->readBuf, size, del);
+}
+
+QByteArray ByteStream::takeWrite(int size, bool del)
+{
+	return takeArray(&d->writeBuf, size, del);
+}
+
+QByteArray & ByteStream::readBuf()
+{
+	return d->readBuf;
+}
+
+QByteArray & ByteStream::writeBuf()
+{
+	return d->writeBuf;
+}
+
+int ByteStream::tryWrite()
+{
+	return -1;
+}
+
+void ByteStream::appendArray(QByteArray *a, const QByteArray &b)
+{
+	int oldsize = a->size();
+	a->resize(oldsize + b.size());
+	memcpy(a->data() + oldsize, b.data(), b.size());
+}
+
+QByteArray ByteStream::takeArray(QByteArray *from, int size, bool del)
+{
+	QByteArray a;
+	if(size == 0) {
+		a = from->copy();
+		if(del)
+			from->resize(0);
+	}
+	else {
+		if(size > (int)from->size())
+			size = from->size();
+		a.resize(size);
+		char *r = from->data();
+		memcpy(a.data(), r, size);
+		if(del) {
+			int newsize = from->size()-size;
+			memmove(r, r+size, newsize);
+			from->resize(newsize);
+		}
+	}
+	return a;
 }

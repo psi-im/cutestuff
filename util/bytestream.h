@@ -22,20 +22,27 @@
 #define CS_BYTESTREAM_H
 
 #include<qobject.h>
+#include<qcstring.h>
 
 class ByteStream : public QObject
 {
 	Q_OBJECT
 public:
+	enum Error { ErrRead, ErrWrite, ErrCustom = 10 };
 	ByteStream(QObject *parent=0);
 	virtual ~ByteStream()=0;
 
 	virtual bool isOpen() const;
 	virtual void close();
-	virtual int write(const QByteArray &)=0;
-	virtual QByteArray read(int bytes=0)=0;
+	virtual int write(const QByteArray &);
+	virtual QByteArray read(int bytes=0);
 	virtual int bytesAvailable() const;
 	virtual int bytesToWrite() const;
+
+	int write(const QCString &);
+
+	static void appendArray(QByteArray *a, const QByteArray &b);
+	static QByteArray takeArray(QByteArray *from, int size=0, bool del=true);
 
 signals:
 	void connectionClosed();
@@ -43,6 +50,21 @@ signals:
 	void readyRead();
 	void bytesWritten(int);
 	void error(int);
+
+protected:
+	void clearReadBuffer();
+	void clearWriteBuffer();
+	void appendRead(const QByteArray &);
+	void appendWrite(const QByteArray &);
+	QByteArray takeRead(int size=0, bool del=true);
+	QByteArray takeWrite(int size=0, bool del=true);
+	QByteArray & readBuf();
+	QByteArray & writeBuf();
+	virtual int tryWrite();
+
+private:
+	class Private;
+	Private *d;
 };
 
 #endif

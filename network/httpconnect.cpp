@@ -22,6 +22,7 @@
 
 #include<qstringlist.h>
 #include"../network/bsocket.h"
+#include"../util/base64.h"
 
 #ifdef PROX_DEBUG
 #include<stdio.h>
@@ -116,8 +117,10 @@ void HttpConnect::reset(bool clear)
 {
 	if(d->sock.isOpen())
 		d->sock.close();
-	if(clear)
+	if(clear) {
+		clearReadBuffer();
 		d->recvBuf.resize(0);
+	}
 	d->active = false;
 }
 
@@ -168,22 +171,8 @@ int HttpConnect::write(const QByteArray &buf)
 
 QByteArray HttpConnect::read(int bytes)
 {
-	if(d->active) {
-		QByteArray a;
-		if(bytes == 0) {
-			a = d->recvBuf.copy();
-			d->recvBuf.resize(0);
-		}
-		else {
-			a.resize(bytes);
-			char *r = d->recvBuf.data();
-			int newsize = d->recvBuf.size()-bytes;
-			memcpy(a.data(), r, bytes);
-			memmove(r, r+bytes, newsize);
-			d->recvBuf.resize(newsize);
-		}
-		return a;
-	}
+	if(d->active)
+		return ByteStream::read(bytes);
 	else
 		return QByteArray();
 }
@@ -191,7 +180,7 @@ QByteArray HttpConnect::read(int bytes)
 int HttpConnect::bytesAvailable() const
 {
 	if(d->active)
-		return d->recvBuf.size();
+		return ByteStream::bytesAvailable();
 	else
 		return 0;
 }
@@ -251,11 +240,11 @@ void HttpConnect::sock_readyRead()
 {
 	QByteArray block = d->sock.read();
 
-	int oldsize = d->recvBuf.size();
-	d->recvBuf.resize(oldsize + block.size());
-	memcpy(d->recvBuf.data() + oldsize, block.data(), block.size());
-
 	if(!d->active) {
+		int oldsize = d->recvBuf.size();
+		d->recvBuf.resize(oldsize + block.size());
+		memcpy(d->recvBuf.data() + oldsize, block.data(), block.size());
+
 		if(d->inHeader) {
 			// grab available lines
 			while(1) {
@@ -299,6 +288,12 @@ void HttpConnect::sock_readyRead()
 #endif
 					d->active = true;
 					connected();
+
+					if(!d->recvBuf.isEmpty()) {
+						appendRead(d->recvBuf);
+						d->recvBuf.resize(0);
+						readyRead();
+					}
 				}
 				else {
 					int err;
@@ -333,8 +328,8 @@ void HttpConnect::sock_readyRead()
 			}
 		}
 	}
-
-	if(d->active) {
+	else {
+		appendRead(block);
 		readyRead();
 	}
 }
@@ -349,7 +344,7 @@ void HttpConnect::sock_error(int x)
 {
 	if(d->active) {
 		reset();
-		error(ErrSocketRead);
+		error(ErrRead);
 	}
 	else {
 		reset(true);
@@ -357,7 +352,7 @@ void HttpConnect::sock_error(int x)
 			error(ErrProxyConnect);
 		else if(x == BSocket::ErrConnectionRefused)
 			error(ErrProxyConnect);
-		else if(x == BSocket::ErrSocketRead)
+		else if(x == BSocket::ErrRead)
 			error(ErrProxyNeg);
 	}
 }
