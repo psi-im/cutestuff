@@ -16,12 +16,16 @@ public:
 	BConsole *c;
 	SocksServer *serv;
 	SocksClient *client;
+
+	QString user, pass;
 };
 
-App::App()
+App::App(int port, const QString &user, const QString &pass)
 :QObject(0)
 {
 	d = new Private;
+	d->user = user;
+	d->pass = pass;
 	d->c = new BConsole;
 	connect(d->c, SIGNAL(connectionClosed()), SLOT(con_connectionClosed()));
 	connect(d->c, SIGNAL(readyRead()), SLOT(con_readyRead()));
@@ -30,7 +34,9 @@ App::App()
 	d->client = 0;
 	d->serv = new SocksServer;
 	connect(d->serv, SIGNAL(incomingReady()), SLOT(ss_incomingReady()));
-	d->serv->listen(1081);
+	d->serv->listen(port);
+
+	fprintf(stderr, "socksd: listening on port %d\n", port);
 }
 
 App::~App()
@@ -96,7 +102,9 @@ void App::ss_incomingReady()
 void App::sc_incomingMethods(int m)
 {
 	fprintf(stderr, "m=%d\n", m);
-	if(m & SocksClient::AuthUsername)
+	if(d->user.isEmpty() && m & SocksClient::AuthNone)
+		d->client->chooseMethod(SocksClient::AuthNone);
+	else if(m & SocksClient::AuthUsername)
 		d->client->chooseMethod(SocksClient::AuthUsername);
 	else {
 		d->client->deleteLater();
@@ -108,7 +116,7 @@ void App::sc_incomingMethods(int m)
 void App::sc_incomingAuth(const QString &user, const QString &pass)
 {
 	fprintf(stderr, "incoming auth: user=[%s], pass=[%s]\n", user.latin1(), pass.latin1());
-	if(user == "joe" && pass == "blow") {
+	if(user == d->user && pass == d->pass) {
 		d->client->authGrant(true);
 	}
 	else {
@@ -146,7 +154,21 @@ int main(int argc, char **argv)
 {
 	QApplication app(argc, argv, false);
 
-	App *a = new App();
+	if(argc < 2) {
+		printf("usage: socksd [port] [user] [pass]\n\n");
+		return 0;
+	}
+
+	QString p = argv[1];
+	int port = p.toInt();
+
+	QString user, pass;
+	if(argc >= 4) {
+		user = argv[2];
+		pass = argv[3];
+	}
+
+	App *a = new App(port, user, pass);
 	QObject::connect(a, SIGNAL(quit()), &app, SLOT(quit()));
 	app.exec();
 	delete a;

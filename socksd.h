@@ -7,7 +7,7 @@ class App : public QObject
 {
 	Q_OBJECT
 public:
-	App();
+	App(int, const QString &, const QString &);
 	~App();
 
 signals:

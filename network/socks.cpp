@@ -515,7 +515,8 @@ void SocksClient::processOutgoing(const QByteArray &block)
 		SPSS_VERSION s;
 		int r = sps_get_version(&d->recvBuf, &s);
 		if(r == -1) {
-			// TODO: some error
+			reset(true);
+			error(ErrProxyNeg);
 			return;
 		}
 		else if(r == 1) {
@@ -564,7 +565,8 @@ void SocksClient::processOutgoing(const QByteArray &block)
 			SPSS_AUTHUSERNAME s;
 			int r = sps_get_authUsername(&d->recvBuf, &s);
 			if(r == -1) {
-				// TODO: error
+				reset(true);
+				error(ErrProxyNeg);
 				return;
 			}
 			else if(r == 1) {
@@ -587,7 +589,8 @@ void SocksClient::processOutgoing(const QByteArray &block)
 		SPS_CONNREQ s;
 		int r = sp_get_connectRequest(&d->recvBuf, &s);
 		if(r == -1) {
-			// TODO: error
+			reset(true);
+			error(ErrProxyNeg);
 			return;
 		}
 		else if(r == 1) {
@@ -683,7 +686,8 @@ void SocksClient::continueIncoming()
 		SPCS_VERSION s;
 		int r = spc_get_version(&d->recvBuf, &s);
 		if(r == -1) {
-			// TODO: error
+			reset(true);
+			error(ErrProxyNeg);
 			return;
 		}
 		else if(r == 1) {
@@ -709,7 +713,8 @@ void SocksClient::continueIncoming()
 		SPCS_AUTHUSERNAME s;
 		int r = spc_get_authUsername(&d->recvBuf, &s);
 		if(r == -1) {
-			// TODO: error
+			reset(true);
+			error(ErrProxyNeg);
 			return;
 		}
 		else if(r == 1) {
@@ -721,7 +726,8 @@ void SocksClient::continueIncoming()
 		SPS_CONNREQ s;
 		int r = sp_get_connectRequest(&d->recvBuf, &s);
 		if(r == -1) {
-			// TODO: error
+			reset(true);
+			error(ErrProxyNeg);
 			return;
 		}
 		else if(r == 1) {
