@@ -32,12 +32,11 @@
 // SOCKS packet stuff
 static QByteArray spc_version()
 {
-	QByteArray ver(5);
+	QByteArray ver(4);
 	ver[0] = 0x05; // socks version 5
-	ver[1] = 0x03; // number of methods
+	ver[1] = 0x02; // number of methods
 	ver[2] = 0x00; // no-auth
-	ver[3] = 0x01; // gss-api
-	ver[4] = 0x02; // username
+	ver[3] = 0x02; // username
 	return ver;
 }
 
@@ -228,7 +227,7 @@ static bool sps_reply(QByteArray *from, SPSS_REPLY *s)
 	return true;
 }
 
-enum { AuthNone, AuthGSSAPI, AuthUsername };
+enum { AuthNone, AuthUsername };
 enum { StepVersion, StepAuth, StepRequest };
 
 class SocksClient::Private
@@ -408,10 +407,6 @@ void SocksClient::sock_readyRead()
 					str = "None";
 					d->authMethod = AuthNone;
 				}
-				else if(s.method == 0x01) {
-					str = "GSSAPI";
-					d->authMethod = AuthGSSAPI;
-				}
 				else if(s.method == 0x02) {
 					str = "Username/Password";
 					d->authMethod = AuthUsername;
@@ -428,12 +423,6 @@ void SocksClient::sock_readyRead()
 				if(d->authMethod == AuthNone) {
 					// no auth, go straight to the request
 					do_request();
-				}
-				else if(d->authMethod == AuthGSSAPI) {
-#ifdef PROX_DEBUG
-					fprintf(stderr, "SocksClient: Authenticating [GSSAPI] ...\n");
-#endif
-					// TODO: auth using GSSAPI
 				}
 				else if(d->authMethod == AuthUsername) {
 					d->step = StepAuth;

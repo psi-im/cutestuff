@@ -110,7 +110,7 @@ QByteArray Base64::decode(const QByteArray &s)
 
 	if(c & 64)
 		p.resize(at - 2);
-	if(d & 64)
+	else if(d & 64)
 		p.resize(at - 1);
 
 	return p;
@@ -127,17 +127,20 @@ QString Base64::arrayToString(const QByteArray &a)
 
 QByteArray Base64::stringToArray(const QString &s)
 {
-	QCString c = s.latin1();
-	QByteArray b = c;
-	b.resize(b.size()-1); // take off the null
-	return decode(b);
+	const char *c = s.latin1();
+	int len = strlen(c);
+	QByteArray b(len);
+	memcpy(b.data(), c, len);
+	QByteArray a = decode(b);
+	return a;
 }
 
 QString Base64::encodeString(const QString &s)
 {
 	QCString c = s.utf8();
-	QByteArray b = c;
-	b.resize(b.size()-1); // take off the null
+	int len = c.length();
+	QByteArray b(len);
+	memcpy(b.data(), c.data(), len);
 	return arrayToString(b);
 }
 

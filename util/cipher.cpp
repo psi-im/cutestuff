@@ -23,11 +23,9 @@
 #include<openssl/evp.h>
 #include"bytestream.h"
 
-//#define HAVE_AES
-
 using namespace Cipher;
 
-static bool lib_encryptArray(EVP_CIPHER *type, const QByteArray &buf, const QByteArray &key, const QByteArray &iv, bool pad, QByteArray *out)
+static bool lib_encryptArray(const EVP_CIPHER *type, const QByteArray &buf, const QByteArray &key, const QByteArray &iv, bool pad, QByteArray *out)
 {
 	QByteArray result(buf.size()+7);
 	int len;
@@ -37,24 +35,24 @@ static bool lib_encryptArray(EVP_CIPHER *type, const QByteArray &buf, const QByt
 	if(!iv.isEmpty())
 		ivp = (unsigned char *)iv.data();
 	EVP_CIPHER_CTX_init(&c);
+	EVP_CIPHER_CTX_set_padding(&c, pad ? 1: 0);
 	if(!EVP_EncryptInit(&c, type, (unsigned char *)key.data(), ivp))
 		return false;
 	if(!EVP_EncryptUpdate(&c, (unsigned char *)result.data(), &len, (unsigned char *)buf.data(), buf.size()))
 		return false;
 	result.resize(len);
-	if(pad) {
-		QByteArray last(8);
-		if(!EVP_EncryptFinal(&c, (unsigned char *)last.data(), &len))
-			return false;
-		last.resize(len);
-		ByteStream::appendArray(&result, last);
-	}
+	QByteArray last(8);
+	if(!EVP_EncryptFinal(&c, (unsigned char *)last.data(), &len))
+		return false;
+	last.resize(len);
+	ByteStream::appendArray(&result, last);
+
 	memset(&c, 0, sizeof(EVP_CIPHER_CTX));
 	*out = result;
 	return true;
 }
 
-static bool lib_decryptArray(EVP_CIPHER *type, const QByteArray &buf, const QByteArray &key, const QByteArray &iv, bool pad, QByteArray *out)
+static bool lib_decryptArray(const EVP_CIPHER *type, const QByteArray &buf, const QByteArray &key, const QByteArray &iv, bool pad, QByteArray *out)
 {
 	QByteArray result(buf.size()+7);
 	int len;
@@ -64,24 +62,24 @@ static bool lib_decryptArray(EVP_CIPHER *type, const QByteArray &buf, const QByt
 	if(!iv.isEmpty())
 		ivp = (unsigned char *)iv.data();
 	EVP_CIPHER_CTX_init(&c);
+	EVP_CIPHER_CTX_set_padding(&c, pad ? 1: 0);
 	if(!EVP_DecryptInit(&c, type, (unsigned char *)key.data(), ivp))
 		return false;
 	if(!EVP_DecryptUpdate(&c, (unsigned char *)result.data(), &len, (unsigned char *)buf.data(), buf.size()))
 		return false;
 	result.resize(len);
-	if(pad) {
-		QByteArray last(8);
-		if(!EVP_DecryptFinal(&c, (unsigned char *)last.data(), &len))
-			return false;
-		last.resize(len);
-		ByteStream::appendArray(&result, last);
-	}
+	QByteArray last(8);
+	if(!EVP_DecryptFinal(&c, (unsigned char *)last.data(), &len))
+		return false;
+	last.resize(len);
+	ByteStream::appendArray(&result, last);
+
 	memset(&c, 0, sizeof(EVP_CIPHER_CTX));
 	*out = result;
 	return true;
 }
 
-static bool lib_generateKeyIV(EVP_CIPHER *type, const QByteArray &data, const QByteArray &salt, QByteArray *key, QByteArray *iv)
+static bool lib_generateKeyIV(const EVP_CIPHER *type, const QByteArray &data, const QByteArray &salt, QByteArray *key, QByteArray *iv)
 {
 	QByteArray k, i;
 	unsigned char *kp = 0;
@@ -103,16 +101,14 @@ static bool lib_generateKeyIV(EVP_CIPHER *type, const QByteArray &data, const QB
 	return true;
 }
 
-static EVP_CIPHER * typeToCIPHER(Type t)
+static const EVP_CIPHER * typeToCIPHER(Type t)
 {
 	if(t == TripleDES)
 		return EVP_des_ede3_cbc();
-#ifdef HAVE_AES
 	else if(t == AES_128)
 		return EVP_aes_128_cbc();
 	else if(t == AES_256)
 		return EVP_aes_256_cbc();
-#endif
 	else
 		return 0;
 }
@@ -120,7 +116,7 @@ static EVP_CIPHER * typeToCIPHER(Type t)
 Key Cipher::generateKey(Type t, const QByteArray &data, const QByteArray &salt)
 {
 	Key k;
-	EVP_CIPHER *type = typeToCIPHER(t);
+	const EVP_CIPHER *type = typeToCIPHER(t);
 	if(!type)
 		return k;
 	QByteArray out;
@@ -133,7 +129,7 @@ Key Cipher::generateKey(Type t, const QByteArray &data, const QByteArray &salt)
 
 QByteArray Cipher::generateIV(Type t, const QByteArray &data, const QByteArray &salt)
 {
-	EVP_CIPHER *type = typeToCIPHER(t);
+	const EVP_CIPHER *type = typeToCIPHER(t);
 	if(!type)
 		return QByteArray();
 	QByteArray out;
@@ -144,7 +140,7 @@ QByteArray Cipher::generateIV(Type t, const QByteArray &data, const QByteArray &
 
 QByteArray Cipher::encrypt(const QByteArray &buf, const Key &key, const QByteArray &iv, bool pad)
 {
-	EVP_CIPHER *type = typeToCIPHER(key.type());
+	const EVP_CIPHER *type = typeToCIPHER(key.type());
 	if(!type)
 		return QByteArray();
 	QByteArray out;
@@ -155,7 +151,7 @@ QByteArray Cipher::encrypt(const QByteArray &buf, const Key &key, const QByteArr
 
 QByteArray Cipher::decrypt(const QByteArray &buf, const Key &key, const QByteArray &iv, bool pad)
 {
-	EVP_CIPHER *type = typeToCIPHER(key.type());
+	const EVP_CIPHER *type = typeToCIPHER(key.type());
 	if(!type)
 		return QByteArray();
 	QByteArray out;

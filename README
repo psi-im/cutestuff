@@ -9,5 +9,6 @@ util        - various things, see util/TODO
 globalaccel - global hotkeys
 network     - sockets and proxies
 sasl        - SASL library
+xmlsec      - XML Encryption
 xmpp        - jabber library
 

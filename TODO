@@ -3,15 +3,15 @@ test:
   sasl
 
 code:
-  sasl: security flags?
-  qssl: server support, certificate information, hostname verify
-  securestream: wrap qssl as bytestream
+  xmlenc
+  qssl: server support, certificate information, hostname verify?
+  securestream: wrap QSSLFilter as ByteStream
   idle
   import misha's iconset code
 
 port:
   win32: bconsole
-  mac: globalaccel
+  mac: globalaccel (eric)
 
 document:
   iconset
