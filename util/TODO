@@ -3,5 +3,5 @@ common (opening urls)
 zip
 showtext
 format parsing
-xml handling
+xml handling, elem2string, etc
 
