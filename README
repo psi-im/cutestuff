@@ -10,4 +10,4 @@ globalaccel - global hotkeys
 network     - sockets, servers, dns, and proxies
 sasl        - SASL library
 xmlsec      - XML Encryption
-
+crash       - generates some (hopefully useful) feedback when program crashes
