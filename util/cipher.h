@@ -44,10 +44,11 @@ namespace Cipher
 		QByteArray v_data;
 	};
 
-	Key generateKey(Type, const QByteArray &data, const QByteArray &salt);
-	QByteArray generateIV(Type, const QByteArray &data, const QByteArray &salt);
-	QByteArray encrypt(const QByteArray &, const Key &, const QByteArray &iv=QByteArray(), bool pad=true);
-	QByteArray decrypt(const QByteArray &, const Key &, const QByteArray &iv=QByteArray(), bool pad=true);
+	Key generateKey(Type);
+	QByteArray generateIV(Type);
+	int ivSize(Type);
+	QByteArray encrypt(const QByteArray &, const Key &, const QByteArray &iv, bool pad, bool *ok=0);
+	QByteArray decrypt(const QByteArray &, const Key &, const QByteArray &iv, bool pad, bool *ok=0);
 }
 
 #endif

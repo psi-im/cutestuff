@@ -3,6 +3,7 @@ test:
   sasl
 
 code:
+  cipher: switch to EVP_EncryptInit_ex ?
   xmlenc
   qssl: server support, certificate information, hostname verify?
   securestream: wrap QSSLFilter as ByteStream

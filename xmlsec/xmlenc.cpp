@@ -1,10 +1,9 @@
 #include"xmlenc.h"
 
-#include"../util/base64.h"
-#include"../util/sha1.h"
 #include"../util/bytestream.h"
+#include"keyops.h"
 
-static QByteArray elemToArray(const QDomElement &e)
+static QByteArray nodeToArray(const QDomNode &e)
 {
 	QString out;
 	QTextStream ts(&out, IO_WriteOnly);
@@ -36,154 +35,188 @@ static QDomElement findSubTag(const QDomElement &e, const QString &name, bool *f
 	return tmp;
 }
 
-// crypto functions
-static QString sym_encrypt(const QByteArray &data, const Cipher::Key &key, const QByteArray &iv)
-{
-	QByteArray encData = iv.copy();
-	ByteStream::appendArray(&encData, Cipher::encrypt(data, key, iv));
-	return Base64::arrayToString(encData);
-}
-
-static QByteArray sym_decrypt(const QString &str, const Cipher::Key &key)
-{
-	QByteArray data = Base64::stringToArray(str);
-	QByteArray iv = ByteStream::takeArray(&data, 8);
-	return Cipher::decrypt(data, key, iv);
-}
-
-static QByteArray calcCMS(const QByteArray &key)
-{
-	QByteArray a = SHA1::hash(key);
-	a.resize(8);
-	return a;
-}
-
-unsigned char sym_3des_fixed_iv[8] = { 0x4a, 0xdd, 0xa2, 0x2c, 0x79, 0xe8, 0x21, 0x05 };
-
-static QString sym_keywrap(const QByteArray &data, const Cipher::Key &key)
-{
-	if(key.type() == Cipher::TripleDES) {
-		QByteArray cks = calcCMS(data);
-		QByteArray wkcks = data.copy();
-		ByteStream::appendArray(&wkcks, cks);
-		//printf("wkcks: %d bytes\n", wkcks.size());
-		QByteArray iv = Cipher::generateIV(key.type(), QCString("Key wrap is my job!"), QByteArray()); // TODO: this should be random
-		QByteArray temp1 = Cipher::encrypt(wkcks, key, iv, false);
-		//printf("temp1: %d bytes\n", temp1.size());
-		QByteArray temp2 = iv;
-		ByteStream::appendArray(&temp2, temp1);
-		//printf("temp2: %d bytes\n", temp2.size());
-		QByteArray temp3(temp2.size());
-		int n2 = (int)temp2.size()-1;
-		for(int n = 0; n < (int)temp2.size(); ++n)
-			temp3[n2--] = temp2[n];
-		//printf("temp3: %d bytes\n", temp3.size());
-		memcpy(iv.data(), sym_3des_fixed_iv, 8);
-		QByteArray final = Cipher::encrypt(temp3, key, iv, false);
-		//printf("wrapped to %d bytes\n", final.size());
-		return Base64::arrayToString(final);
-	}
-	else
-		return "";
-}
-
-static QByteArray sym_keyunwrap(const QString &str, const Cipher::Key &key)
-{
-	if(key.type() == Cipher::TripleDES) {
-		QByteArray data = Base64::stringToArray(str);
-		//printf("unwrapping %d bytes\n", data.size());
-		QByteArray iv(8);
-		memcpy(iv.data(), sym_3des_fixed_iv, 8);
-		QByteArray temp3 = Cipher::decrypt(data, key, iv, false);
-		//printf("temp3: %d bytes\n", temp3.size());
-		QByteArray temp2(temp3.size());
-		int n2 = (int)temp3.size()-1;
-		for(int n = 0; n < (int)temp3.size(); ++n)
-			temp2[n2--] = temp3[n];
-		iv = ByteStream::takeArray(&temp2, 8);
-		QByteArray temp1 = temp2;
-		QByteArray wkcks = Cipher::decrypt(temp1, key, iv, false);
-		QByteArray wk = ByteStream::takeArray(&wkcks, wkcks.size() - 8);
-		QByteArray cks = wkcks;
-		QByteArray t = calcCMS(wk);
-		// TODO: compare 't' with 'cks'
-		return wk;
-	}
-	else
-		return QByteArray();
-}
 
 using namespace XmlEnc;
 
 //----------------------------------------------------------------------------
 // Encrypted
 //----------------------------------------------------------------------------
-void Encrypted::setData(const QString &data, const QString &mimeType)
+Encrypted::Encrypted()
 {
-	v_type = Data;
-	v_dataType = Arbitrary;
-	v_data = data;
-	v_mimeType = mimeType;
+	baseNS = "http://www.w3.org/2001/04/xmlenc#";
+	clear();
 }
 
-void Encrypted::setElement(const QDomElement &e)
+Encrypted::~Encrypted()
 {
+	clear();
+}
+
+void Encrypted::clear()
+{
+	v_method = None;
+	v_id = "";
+	v_dataType = Arbitrary;
+	v_type = Data;
+	v_mimeType = "";
+	v_keyInfo = KeyInfo();
+
+	v_cval = "";
+	v_cref = "";
+	v_creftrans = QDomElement();
+}
+
+Method Encrypted::cipherTypeToMethod(Cipher::Type t) const
+{
+	if(t == Cipher::TripleDES)
+		return TripleDES;
+	else if(t == Cipher::AES_128)
+		return AES_128;
+	else if(t == Cipher::AES_256)
+		return AES_256;
+	else
+		return None;
+}
+
+void Encrypted::setDataReference(const QString &uri, Method m, const QDomElement &transforms)
+{
+	v_method = m;
+	v_cref = uri;
+	v_creftrans = transforms;
+}
+
+bool Encrypted::encryptData(const QByteArray &data, const Cipher::Key &key)
+{
+	QByteArray iv = Cipher::generateIV(key.type());
+	sym_encrypt(data, key, iv, &v_cval);
+	v_dataType = Arbitrary;
+	v_method = cipherTypeToMethod(key.type());
+	return true;
+}
+
+bool Encrypted::encryptElement(const QDomElement &data, const Cipher::Key &key)
+{
+	QByteArray iv = Cipher::generateIV(key.type());
+	sym_encrypt(nodeToArray(data), key, iv, &v_cval);
 	v_type = Data;
 	v_dataType = Element;
-	v_elem = e;
+	v_method = cipherTypeToMethod(key.type());
+	return true;
 }
 
-void Encrypted::setContent(const QDomElement &e)
+bool Encrypted::encryptContent(const QDomElement &data, const Cipher::Key &key)
 {
+	// convert children to raw data
+	QByteArray a;
+	for(QDomNode n = data.firstChild(); !n.isNull(); n = n.nextSibling())
+		ByteStream::appendArray(&a, nodeToArray(n));
+
+	QByteArray iv = Cipher::generateIV(key.type());
+	sym_encrypt(a, key, iv, &v_cval);
 	v_type = Data;
 	v_dataType = Content;
-	v_elem = e;
+	v_method = cipherTypeToMethod(key.type());
+	return true;
 }
 
-void Encrypted::setKey(const Cipher::Key &c)
+bool Encrypted::encryptKey(const Cipher::Key &data, const Cipher::Key &key)
 {
+	sym_keywrap(data.data(), key, &v_cval);
 	v_type = Key;
 	v_dataType = Arbitrary;
-	v_key = c;
+	v_method = cipherTypeToMethod(key.type());
+	return true;
 }
 
-QDomElement Encrypted::encrypt(QDomDocument *doc, const Cipher::Key &key) const
+QByteArray Encrypted::decryptData(const Cipher::Key &key) const
+{
+	QByteArray result;
+	sym_decrypt(v_cval, key, &result);
+	return result;
+}
+
+QDomElement Encrypted::decryptElement(QDomDocument *doc, const Cipher::Key &key) const
+{
+	QByteArray result;
+	sym_decrypt(v_cval, key, &result);
+
+	QDomDocument d;
+	if(!d.setContent(result))
+		return QDomElement();
+	return doc->importNode(d.documentElement(), true).toElement();
+}
+
+QDomNodeList Encrypted::decryptContent(QDomDocument *doc, const Cipher::Key &key) const
+{
+	QByteArray result;
+	sym_decrypt(v_cval, key, &result);
+
+	// nul-terminate
+	result.resize(result.size()+1);
+	result[result.size()-1] = 0;
+
+	QCString cs = "<dummy>";
+	cs += (char *)result.data();
+	cs += "</dummy>";
+
+	QDomDocument d;
+	if(!d.setContent(cs))
+		return QDomNodeList();
+	QDomElement e = d.documentElement().firstChild().toElement();
+	if(e.isNull() || e.tagName() != "dummy")
+		return QDomNodeList();
+
+	return doc->importNode(e, true).childNodes();
+}
+
+Cipher::Key Encrypted::decryptKey(const Cipher::Key &key) const
+{
+	QByteArray result;
+	if(!sym_keyunwrap(v_cval, key, &result))
+		printf("error unwrapping\n");
+
+	// TODO: key type?
+
+	Cipher::Key k;
+	k.setType(key.type());
+	k.setData(result);
+	return k;
+}
+
+QDomElement Encrypted::toXml(QDomDocument *doc) const
 {
 	QString baseNS = "http://www.w3.org/2001/04/xmlenc#";
 	QDomElement enc;
 
-	if(v_type == Data) {
-		if(v_dataType == Element) {
-			QByteArray iv = Cipher::generateIV(key.type(), QCString("Get this man an iv!"), QByteArray());
-			QString encString = sym_encrypt(elemToArray(v_elem), key, iv);
+	// base xml
+	if(v_type == Data)
+		enc = doc->createElement("EncryptedData");
+	else
+		enc = doc->createElement("EncryptedKey");
+	enc.setAttribute("xmlns", baseNS);
+	if(v_type == Data)
+		enc.setAttribute("Type", baseNS + "Element");
 
-			enc = doc->createElement("EncryptedData");
-			enc.setAttribute("xmlns", baseNS);
-			enc.setAttribute("Type", baseNS + "Element");
-			QDomElement meth = doc->createElement("EncryptionMethod");
-			meth.setAttribute("Algorithm", baseNS + "tripledes-cbc");
-			enc.appendChild(meth);
-			QDomElement cd = doc->createElement("CipherData");
-			QDomElement cv = doc->createElement("CipherValue");
-			cv.appendChild(doc->createTextNode(encString));
-			cd.appendChild(cv);
-			enc.appendChild(cd);
-		}
+	// method
+	QDomElement meth = doc->createElement("EncryptionMethod");
+	meth.setAttribute("Algorithm", methodToAlgorithm(v_method, v_type));
+	enc.appendChild(meth);
+
+	// cipherdata
+	QDomElement cd = doc->createElement("CipherData");
+	if(!v_cref.isEmpty()) {
+		QDomElement cr = doc->createElement("CipherReference");
+		cr.setAttribute("URI", v_cref);
+		if(!v_creftrans.isNull())
+			cr.appendChild(v_creftrans);
+		cd.appendChild(cr);
 	}
 	else {
-		QString encString = sym_keywrap(v_key.data(), key);
-
-		enc = doc->createElement("EncryptedKey");
-		enc.setAttribute("xmlns", baseNS);
-		QDomElement meth = doc->createElement("EncryptionMethod");
-		meth.setAttribute("Algorithm", baseNS + "kw-tripledes");
-		enc.appendChild(meth);
-		QDomElement cd = doc->createElement("CipherData");
 		QDomElement cv = doc->createElement("CipherValue");
-		cv.appendChild(doc->createTextNode(encString));
+		cv.appendChild(doc->createTextNode(v_cval));
 		cd.appendChild(cv);
-		enc.appendChild(cd);
 	}
+	enc.appendChild(cd);
 
 	return enc;
 }
@@ -209,114 +242,86 @@ bool Encrypted::fromXml(const QDomElement &e)
 			dt = Content;
 	}
 
-	if(e.tagName() == "EncryptedData") {
-		Type t = Data;
-		Method m = TripleDES;
+	Type t;
+	if(e.tagName() == "EncryptedData")
+		t = Data;
+	else if(e.tagName() == "EncryptedKey")
+		t = Key;
+	else
+		return false;
 
-		bool found;
-		QDomElement i = findSubTag(e, "EncryptionMethod", &found);
-		if(!found)
-			return false;
-		QString str = i.attribute("Algorithm");
-		int n = str.find('#');
-		if(n == -1)
-			return false;
-		++n;
-		if(str.mid(0, n) != baseNS)
-			return false;
-		str = str.mid(n);
-		if(str == "tripledes-cbc")
-			m = TripleDES;
-		else
-			return false;
+	// method
+	Method m = None;
+	bool found;
+	QDomElement i = findSubTag(e, "EncryptionMethod", &found);
+	if(!found)
+		return false;
+	QString str = i.attribute("Algorithm");
+	int n = str.find('#');
+	if(n == -1)
+		return false;
+	++n;
+	if(str.mid(0, n) != baseNS)
+		return false;
+	str = str.mid(n);
 
-		QString cval;
-		i = findSubTag(e, "CipherData", &found);
-		if(!found)
-			return false;
-		i = findSubTag(i, "CipherValue", &found);
-		if(!found)
-			return false;
+	m = algorithmToMethod(str);
+
+	// cipherdata
+	QString cval, cref;
+	QDomElement creftrans;
+	i = findSubTag(e, "CipherData", &found);
+	if(!found)
+		return false;
+	i = findSubTag(i, "CipherValue", &found);
+	if(found)
 		cval = i.text();
-
-		// take it
-		v_type = t;
-		v_data = dt;
-		v_method = m;
-		v_cval = cval;
-
-		return true;
-	}
-	else if(e.tagName() == "EncryptedKey") {
-		Type t = Key;
-		Method m = TripleDES;
-
-		bool found;
-		QDomElement i = findSubTag(e, "EncryptionMethod", &found);
+	else {
+		i = findSubTag(i, "CipherReference", &found);
 		if(!found)
 			return false;
-		QString str = i.attribute("Algorithm");
-		int n = str.find('#');
-		if(n == -1)
-			return false;
-		++n;
-		if(str.mid(0, n) != baseNS)
-			return false;
-		str = str.mid(n);
-		if(str == "kw-tripledes")
-			m = TripleDES;
-		else
-			return false;
-
-		QString cval;
-		i = findSubTag(e, "CipherData", &found);
-		if(!found)
-			return false;
-		i = findSubTag(i, "CipherValue", &found);
-		if(!found)
-			return false;
-		cval = i.text();
-
-		// take it
-		v_type = t;
-		v_data = dt;
-		v_method = m;
-		v_cval = cval;
-
-		return true;
+		cref = i.attribute("URI");
+		creftrans = i.firstChild().toElement();
 	}
 
-	return false;
+	// looks good, let's take it
+	clear();
+	v_type = t;
+	v_dataType = dt;
+	v_method = m;
+	v_cval = cval;
+	v_cref = cref;
+	v_creftrans = creftrans;
+
+	return true;
 }
 
-QByteArray Encrypted::decryptData(const Cipher::Key &) const
+QString Encrypted::methodToAlgorithm(Method m, Type t) const
 {
-	return QByteArray();
+	QString s;
+	if(m == TripleDES)
+		s = (t == Key ? "kw-tripledes": "tripledes-cbc");
+	else if(m == AES_128)
+		s = (t == Key ? "kw-aes128": "aes128-cbc");
+	else if(m == AES_256)
+		s = (t == Key ? "kw-aes256": "aes256-cbc");
+	else
+		return "";
+
+	return (baseNS + s);
 }
 
-QDomElement Encrypted::decryptElement(QDomDocument *doc, const Cipher::Key &key) const
+Method Encrypted::algorithmToMethod(const QString &s) const
 {
-	QByteArray result = sym_decrypt(v_cval, key);
+	Method m;
+	if(s == "tripledes-cbc" || s == "kw-tripledes")
+		m = TripleDES;
+	else if(s == "aes128-cbc" || s == "kw-aes128")
+		m = AES_128;
+	else if(s == "aes256-cbc" || s == "kw-aes256")
+		m = AES_256;
+	else
+		return None;
 
-	QDomDocument d;
-	if(!d.setContent(result))
-		return QDomElement();
-	return doc->importNode(d.documentElement(), true).toElement();
-}
-
-QDomNodeList Encrypted::decryptContent(QDomDocument *, const Cipher::Key &) const
-{
-	return QDomNodeList();
-}
-
-Cipher::Key Encrypted::decryptKey(const Cipher::Key &key) const
-{
-	QByteArray result = sym_keyunwrap(v_cval, key);
-
-	// TODO: key type?
-
-	Cipher::Key k;
-	k.setType(key.type());
-	k.setData(result);
-	return k;
+	return m;
 }

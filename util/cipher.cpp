@@ -27,7 +27,7 @@ using namespace Cipher;
 
 static bool lib_encryptArray(const EVP_CIPHER *type, const QByteArray &buf, const QByteArray &key, const QByteArray &iv, bool pad, QByteArray *out)
 {
-	QByteArray result(buf.size()+7);
+	QByteArray result(buf.size()+type->block_size);
 	int len;
 	EVP_CIPHER_CTX c;
 
@@ -35,17 +35,19 @@ static bool lib_encryptArray(const EVP_CIPHER *type, const QByteArray &buf, cons
 	if(!iv.isEmpty())
 		ivp = (unsigned char *)iv.data();
 	EVP_CIPHER_CTX_init(&c);
-	EVP_CIPHER_CTX_set_padding(&c, pad ? 1: 0);
-	if(!EVP_EncryptInit(&c, type, (unsigned char *)key.data(), ivp))
+	//EVP_CIPHER_CTX_set_padding(&c, pad ? 1: 0);
+	if(!EVP_EncryptInit_ex(&c, type, NULL, (unsigned char *)key.data(), ivp))
 		return false;
 	if(!EVP_EncryptUpdate(&c, (unsigned char *)result.data(), &len, (unsigned char *)buf.data(), buf.size()))
 		return false;
 	result.resize(len);
-	QByteArray last(8);
-	if(!EVP_EncryptFinal(&c, (unsigned char *)last.data(), &len))
-		return false;
-	last.resize(len);
-	ByteStream::appendArray(&result, last);
+	if(pad) {
+		QByteArray last(type->block_size);
+		if(!EVP_EncryptFinal_ex(&c, (unsigned char *)last.data(), &len))
+			return false;
+		last.resize(len);
+		ByteStream::appendArray(&result, last);
+	}
 
 	memset(&c, 0, sizeof(EVP_CIPHER_CTX));
 	*out = result;
@@ -54,7 +56,7 @@ static bool lib_encryptArray(const EVP_CIPHER *type, const QByteArray &buf, cons
 
 static bool lib_decryptArray(const EVP_CIPHER *type, const QByteArray &buf, const QByteArray &key, const QByteArray &iv, bool pad, QByteArray *out)
 {
-	QByteArray result(buf.size()+7);
+	QByteArray result(buf.size()+type->block_size);
 	int len;
 	EVP_CIPHER_CTX c;
 
@@ -62,17 +64,25 @@ static bool lib_decryptArray(const EVP_CIPHER *type, const QByteArray &buf, cons
 	if(!iv.isEmpty())
 		ivp = (unsigned char *)iv.data();
 	EVP_CIPHER_CTX_init(&c);
-	EVP_CIPHER_CTX_set_padding(&c, pad ? 1: 0);
-	if(!EVP_DecryptInit(&c, type, (unsigned char *)key.data(), ivp))
+	//EVP_CIPHER_CTX_set_padding(&c, pad ? 1: 0);
+	if(!EVP_DecryptInit_ex(&c, type, NULL, (unsigned char *)key.data(), ivp))
 		return false;
-	if(!EVP_DecryptUpdate(&c, (unsigned char *)result.data(), &len, (unsigned char *)buf.data(), buf.size()))
-		return false;
+	if(!pad) {
+		if(!EVP_EncryptUpdate(&c, (unsigned char *)result.data(), &len, (unsigned char *)buf.data(), buf.size()))
+			return false;
+	}
+	else {
+		if(!EVP_DecryptUpdate(&c, (unsigned char *)result.data(), &len, (unsigned char *)buf.data(), buf.size()))
+			return false;
+	}
 	result.resize(len);
-	QByteArray last(8);
-	if(!EVP_DecryptFinal(&c, (unsigned char *)last.data(), &len))
-		return false;
-	last.resize(len);
-	ByteStream::appendArray(&result, last);
+	if(pad) {
+		QByteArray last(type->block_size);
+		if(!EVP_DecryptFinal_ex(&c, (unsigned char *)last.data(), &len))
+			return false;
+		last.resize(len);
+		ByteStream::appendArray(&result, last);
+	}
 
 	memset(&c, 0, sizeof(EVP_CIPHER_CTX));
 	*out = result;
@@ -113,49 +123,67 @@ static const EVP_CIPHER * typeToCIPHER(Type t)
 		return 0;
 }
 
-Key Cipher::generateKey(Type t, const QByteArray &data, const QByteArray &salt)
+Key Cipher::generateKey(Type t)
 {
 	Key k;
 	const EVP_CIPHER *type = typeToCIPHER(t);
 	if(!type)
 		return k;
 	QByteArray out;
-	if(!lib_generateKeyIV(type, data, salt, &out, 0))
+	if(!lib_generateKeyIV(type, QCString("A key for you."), QByteArray(), &out, 0))
 		return k;
 	k.setType(t);
 	k.setData(out);
 	return k;
 }
 
-QByteArray Cipher::generateIV(Type t, const QByteArray &data, const QByteArray &salt)
+QByteArray Cipher::generateIV(Type t)
 {
 	const EVP_CIPHER *type = typeToCIPHER(t);
 	if(!type)
 		return QByteArray();
 	QByteArray out;
-	if(!lib_generateKeyIV(type, data, salt, 0, &out))
+	if(!lib_generateKeyIV(type, QCString("Get this man an iv!"), QByteArray(), 0, &out))
 		return QByteArray();
 	return out;
 }
 
-QByteArray Cipher::encrypt(const QByteArray &buf, const Key &key, const QByteArray &iv, bool pad)
+int Cipher::ivSize(Type t)
 {
+	const EVP_CIPHER *type = typeToCIPHER(t);
+	if(!type)
+		return -1;
+	return type->iv_len;
+}
+
+QByteArray Cipher::encrypt(const QByteArray &buf, const Key &key, const QByteArray &iv, bool pad, bool *ok)
+{
+	if(ok)
+		*ok = false;
 	const EVP_CIPHER *type = typeToCIPHER(key.type());
 	if(!type)
 		return QByteArray();
 	QByteArray out;
 	if(!lib_encryptArray(type, buf, key.data(), iv, pad, &out))
 		return QByteArray();
+
+	if(ok)
+		*ok = true;
 	return out;
 }
 
-QByteArray Cipher::decrypt(const QByteArray &buf, const Key &key, const QByteArray &iv, bool pad)
+QByteArray Cipher::decrypt(const QByteArray &buf, const Key &key, const QByteArray &iv, bool pad, bool *ok)
 {
+	if(ok)
+		*ok = false;
 	const EVP_CIPHER *type = typeToCIPHER(key.type());
 	if(!type)
 		return QByteArray();
 	QByteArray out;
 	if(!lib_decryptArray(type, buf, key.data(), iv, pad, &out))
 		return QByteArray();
+
+	if(ok)
+		*ok = true;
 	return out;
 }

@@ -8,6 +8,7 @@ HEADERS = \
 	util/base64.h \
 	util/cipher.h \
 	util/sha1.h \
+	xmlsec/keyops.h \
 	xmlsec/xmlenc.h
 
 SOURCES = \
@@ -15,6 +16,7 @@ SOURCES = \
 	util/base64.cpp \
 	util/cipher.cpp \
 	util/sha1.cpp \
+	xmlsec/keyops.cpp \
 	xmlsec/xmlenc.cpp \
 	enctest.cpp
 
