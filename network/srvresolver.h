@@ -24,9 +24,7 @@
 #include<qvaluelist.h>
 #include<qdns.h>
 
-#ifdef CS_NAMESPACE
-namespace CS_NAMESPACE {
-#endif
+// CS_NAMESPACE_BEGIN
 
 class SrvResolver : public QObject
 {
@@ -62,8 +60,6 @@ private:
 	void tryNext();
 };
 
-#ifdef CS_NAMESPACE
-}
-#endif
+// CS_NAMESPACE_END
 
 #endif

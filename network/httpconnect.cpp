@@ -28,9 +28,7 @@
 #include<stdio.h>
 #endif
 
-#ifdef CS_NAMESPACE
-namespace CS_NAMESPACE {
-#endif
+// CS_NAMESPACE_BEGIN
 
 static QString extractLine(QByteArray *buf, bool *found)
 {
@@ -360,6 +358,4 @@ void HttpConnect::sock_error(int x)
 	}
 }
 
-#ifdef CS_NAMESPACE
-}
-#endif
+// CS_NAMESPACE_END

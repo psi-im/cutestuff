@@ -27,9 +27,7 @@
 #include<qmutex.h>
 #include<qhostaddress.h>
 
-#ifdef CS_NAMESPACE
-namespace CS_NAMESPACE {
-#endif
+// CS_NAMESPACE_BEGIN
 
 class NDnsWorker;
 class NDnsManager;
@@ -85,8 +83,6 @@ private:
 	void tryDestroy();
 };
 
-#ifdef CS_NAMESPACE
-}
-#endif
+// CS_NAMESPACE_END
 
 #endif

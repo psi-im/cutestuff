@@ -23,9 +23,7 @@
 
 #include<qstring.h>
 
-#ifdef CS_NAMESPACE
-namespace CS_NAMESPACE {
-#endif
+// CS_NAMESPACE_BEGIN
 
 class Base64
 {
@@ -37,8 +35,6 @@ public:
 	static QString encodeString(const QString &);
 };
 
-#ifdef CS_NAMESPACE
-}
-#endif
+// CS_NAMESPACE_END
 
 #endif

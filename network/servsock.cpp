@@ -20,9 +20,7 @@
 
 #include"servsock.h"
 
-#ifdef CS_NAMESPACE
-namespace CS_NAMESPACE {
-#endif
+// CS_NAMESPACE_BEGIN
 
 //----------------------------------------------------------------------------
 // ServSock
@@ -101,6 +99,4 @@ void ServSockSignal::newConnection(int x)
 	connectionReady(x);
 }
 
-#ifdef CS_NAMESPACE
-}
-#endif
+// CS_NAMESPACE_END

@@ -36,9 +36,7 @@
 #include"td.h"
 #endif
 
-#ifdef CS_NAMESPACE
-namespace CS_NAMESPACE {
-#endif
+// CS_NAMESPACE_BEGIN
 
 static QByteArray randomArray(int size)
 {
@@ -642,6 +640,4 @@ void HttpProxyPost::sock_error(int x)
 		error(ErrProxyNeg);
 }
 
-#ifdef CS_NAMESPACE
-}
-#endif
+// CS_NAMESPACE_END

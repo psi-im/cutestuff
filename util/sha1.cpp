@@ -20,9 +20,7 @@
 
 #include"sha1.h"
 
-#ifdef CS_NAMESPACE
-namespace CS_NAMESPACE {
-#endif
+// CS_NAMESPACE_BEGIN
 
 /****************************************************************************
   SHA1 - from a public domain implementation by Steve Reid (steve@edmweb.com)
@@ -195,6 +193,4 @@ QString SHA1::digest(const QString &in)
 	return out;
 }
 
-#ifdef CS_NAMESPACE
-}
-#endif
+// CS_NAMESPACE_END

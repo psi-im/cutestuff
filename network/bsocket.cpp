@@ -30,9 +30,7 @@
 #include<stdio.h>
 #endif
 
-#ifdef CS_NAMESPACE
-namespace CS_NAMESPACE {
-#endif
+// CS_NAMESPACE_BEGIN
 
 class BSocket::Private
 {
@@ -302,6 +300,4 @@ void BSocket::qs_error(int x)
 		error(ErrRead);
 }
 
-#ifdef CS_NAMESPACE
-}
-#endif
+// CS_NAMESPACE_END

@@ -25,9 +25,7 @@
 #include<qhostaddress.h>
 #include"bytestream.h"
 
-#ifdef CS_NAMESPACE
-namespace CS_NAMESPACE {
-#endif
+// CS_NAMESPACE_BEGIN
 
 class BSocket : public ByteStream
 {
@@ -74,8 +72,6 @@ private:
 	void ensureSocket();
 };
 
-#ifdef CS_NAMESPACE
-}
-#endif
+// CS_NAMESPACE_END
 
 #endif

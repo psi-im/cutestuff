@@ -24,7 +24,15 @@
 #include<qstringlist.h>
 #include<qptrlist.h>
 #include<qtimer.h>
+
+#ifdef Q_OS_UNIX
 #include<netinet/in.h>
+#endif
+
+#ifdef Q_OS_WIN32
+#include<windows.h>
+#endif
+
 #include"servsock.h"
 #include"bsocket.h"
 
@@ -32,9 +40,7 @@
 #include<stdio.h>
 #endif
 
-#ifdef CS_NAMESPACE
-namespace CS_NAMESPACE {
-#endif
+// CS_NAMESPACE_BEGIN
 
 //----------------------------------------------------------------------------
 // SocksClient
@@ -888,6 +894,4 @@ void SocksServer::connectionError()
 	c->deleteLater();
 }
 
-#ifdef CS_NAMESPACE
-}
-#endif
+// CS_NAMESPACE_END

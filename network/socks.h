@@ -23,9 +23,7 @@
 
 #include"bytestream.h"
 
-#ifdef CS_NAMESPACE
-namespace CS_NAMESPACE {
-#endif
+// CS_NAMESPACE_BEGIN
 
 class SocksServer;
 
@@ -113,8 +111,6 @@ private:
 	Private *d;
 };
 
-#ifdef CS_NAMESPACE
-}
-#endif
+// CS_NAMESPACE_END
 
 #endif

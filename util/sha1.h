@@ -23,9 +23,7 @@
 
 #include<qstring.h>
 
-#ifdef CS_NAMESPACE
-namespace CS_NAMESPACE {
-#endif
+// CS_NAMESPACE_BEGIN
 
 class SHA1
 {
@@ -60,8 +58,6 @@ private:
 	CHAR64LONG16* block;
 };
 
-#ifdef CS_NAMESPACE
-}
-#endif
+// CS_NAMESPACE_END
 
 #endif

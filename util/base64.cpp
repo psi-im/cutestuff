@@ -20,9 +20,7 @@
 
 #include"base64.h"
 
-#ifdef CS_NAMESPACE
-namespace CS_NAMESPACE {
-#endif
+// CS_NAMESPACE_BEGIN
 
 //! \class Base64 base64.h
 //! \brief Base64 conversion functions.
@@ -176,6 +174,4 @@ QString Base64::encodeString(const QString &s)
 	return arrayToString(b);
 }
 
-#ifdef CS_NAMESPACE
-}
-#endif
+// CS_NAMESPACE_END

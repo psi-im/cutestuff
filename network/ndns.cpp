@@ -64,9 +64,7 @@
 #include<windows.h>
 #endif
 
-#ifdef CS_NAMESPACE
-namespace CS_NAMESPACE {
-#endif
+// CS_NAMESPACE_BEGIN
 
 //! \if _hide_doc_
 class NDnsWorkerEvent : public QCustomEvent
@@ -362,6 +360,4 @@ void NDnsWorker::run()
 	QApplication::postEvent(par, new NDnsWorkerEvent(this));
 }
 
-#ifdef CS_NAMESPACE
-}
-#endif
+// CS_NAMESPACE_END

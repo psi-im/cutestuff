@@ -23,9 +23,7 @@
 
 #include"bytestream.h"
 
-#ifdef CS_NAMESPACE
-namespace CS_NAMESPACE {
-#endif
+// CS_NAMESPACE_BEGIN
 
 class HttpConnect : public ByteStream
 {
@@ -64,8 +62,6 @@ private:
 	void reset(bool clear=false);
 };
 
-#ifdef CS_NAMESPACE
-}
-#endif
+// CS_NAMESPACE_END
 
 #endif
