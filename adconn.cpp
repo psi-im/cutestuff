@@ -18,7 +18,7 @@ public:
 	int mode;
 };
 
-App::App(int mode, const QString &host, int port, const QString &serv, const QString &proxy_host, int proxy_port)
+App::App(int mode, const QString &host, int port, const QString &serv, const QString &proxy_host, int proxy_port, const QString &proxy_user, const QString &proxy_pass)
 :QObject(0)
 {
 	d = new Private;
@@ -48,6 +48,8 @@ App::App(int mode, const QString &host, int port, const QString &serv, const QSt
 		connect(&d->h, SIGNAL(readyRead()), SLOT(st_readyRead()));
 		connect(&d->h, SIGNAL(error(int)), SLOT(st_error(int)));
 		fprintf(stderr, "adconn: Connecting to %s:%d via %s:%d (https)\n", host.latin1(), port, proxy_host.latin1(), proxy_port);
+		if(!proxy_user.isEmpty())
+			d->h.setAuth(proxy_user, proxy_pass);
 		d->h.connectToHost(proxy_host, proxy_port, host, port);
 	}
 }
@@ -111,109 +113,118 @@ int main(int argc, char **argv)
 	QApplication app(argc, argv, false);
 
 	if(argc < 2) {
-		printf("usage: adconn [host:port]\n");
-		printf("       adconn [server] [server_type]\n");
-		printf("       adconn --proxy=[https|poll|socks],[host:port] [host:port]\n");
+		printf("usage: adconn [options] [host]\n");
+		//printf("\n");
+		printf("   [host] must be in the form 'host:port' or 'domain#server'\n");
+		//printf("\n");
+		printf("   Options:\n");
+		printf("     --proxy=[https|poll|socks],host:port\n");
+		printf("     --proxy-auth=user,pass\n");
 		printf("\n");
 		return 0;
 	}
 
-	int mode=-1;
-	QString host;
-	int port=0;
-	QString serv;
+	int mode = 0;
 	QString proxy_host;
 	int proxy_port=0;
+	QString proxy_user, proxy_pass;
 
-	QString s = argv[1];
-	if(s.left(2) == "--") {
-		QString opt, rest;
-		int n = s.find('=', 2);
-		if(n != -1) {
-			opt = s.mid(2, n-2);
-			++n;
-			rest = s.mid(n);
-		}
-		else {
-			opt = s.mid(2);
-			rest = "";
-		}
+	for(int at = 1; at < argc; ++at) {
+		QString s = argv[at];
 
-		if(opt == "proxy") {
-			if(argc < 3) {
-				fprintf(stderr, "Not enough arguments.\n");
-				return 0;
-			}
-
-			QString type;
-			bool ok = false;
-			int n = rest.find(',');
+		// is it an option?
+		if(s.left(2) == "--") {
+			QString name;
+			QStringList args;
+			int n = s.find('=', 2);
 			if(n != -1) {
-				type = rest.mid(0, n);
+				name = s.mid(2, n-2);
 				++n;
-				int n2 = rest.find(':', n);
-				if(n2 != -1) {
-					proxy_host = rest.mid(n, n2-n);
-					n = n2 + 1;
-					proxy_port = rest.mid(n).toInt();
-					ok = true;
-				}
-			}
-			if(!ok) {
-				fprintf(stderr, "Bad format of proxy option.\n");
-				return 0;
-			}
-
-			QString s = argv[2];
-			n = s.find(':');
-			if(n == -1) {
-				fprintf(stderr, "Bad format of host:port.\n");
-				return 0;
-			}
-			host = s.mid(0, n);
-			++n;
-			port = s.mid(n).toInt();
-
-			if(type == "https") {
-				mode = 2;
-			}
-			else if(type == "poll") {
-				fprintf(stderr, "poll proxy mode not supported yet.\n");
-				return 0;
-			}
-			else if(type == "socks") {
-				fprintf(stderr, "socks proxy mode not supported yet.\n");
-				return 0;
+				args = QStringList::split(',', s.mid(n), true);
 			}
 			else {
-				fprintf(stderr, "unknown proxy type '%s'\n", type.latin1());
+				name = s.mid(2);
+				args.clear();
+			}
+
+			// eat the arg
+			--argc;
+			for(int x = at; x < argc; ++x)
+				argv[x] = argv[x+1];
+			--at; // don't advance
+
+			// process option
+			if(name == "proxy") {
+				QString type = args[0];
+				QString s = args[1];
+				int n = s.find(':');
+				if(n == -1) {
+					// TODO: error
+				}
+				proxy_host = s.mid(0, n);
+				++n;
+				proxy_port = s.mid(n).toInt();
+
+				if(type == "https") {
+					mode = 2;
+				}
+				else if(type == "poll") {
+					printf("proxy 'poll' not supported yet.\n");
+					return 0;
+				}
+				else if(type == "socks") {
+					printf("proxy 'socks' not supported yet.\n");
+					return 0;
+				}
+				else {
+					printf("no such proxy type '%s'\n", type.latin1());
+					return 0;
+				}
+			}
+			else if(name == "proxy-auth") {
+				proxy_user = args[0];
+				proxy_pass = args[1];
+			}
+			else {
+				printf("Unknown option '%s'\n", name.latin1());
 				return 0;
 			}
-		}
-		else {
-			fprintf(stderr, "Unknown option '%s'\n", opt.latin1());
-			return 0;
-		}
-	}
-	else {
-		int n = s.find(':');
-		if(n == -1) {
-			if(argc < 3) {
-				fprintf(stderr, "No server_type specified.\n");
-				return 0;
-			}
-			mode = 1;
-			host = s;
-			serv = argv[2];
-		}
-		else {
-			mode = 0;
-			host = s.mid(0, n);
-			port = s.mid(n+1).toInt();
 		}
 	}
 
-	App *a = new App(mode, host, port, serv, proxy_host, proxy_port);
+	if(argc < 2) {
+		printf("No host specified!\n");
+		return 0;
+	}
+
+	QString host, serv;
+	int port=0;
+
+	QString s = argv[1];
+	int n = s.find(':');
+	if(n == -1) {
+		n = s.find('#');
+		if(n == -1) {
+			printf("No port or server specified!\n");
+			return 0;
+		}
+
+		if(mode >= 2) {
+			printf("Can't use domain#server with proxy!\n");
+			return 0;
+		}
+		host = s.mid(0, n);
+		++n;
+		serv = s.mid(n);
+		mode = 1;
+	}
+	else {
+		host = s.mid(0, n);
+		++n;
+		port = s.mid(n).toInt();
+	}
+
+	App *a = new App(mode, host, port, serv, proxy_host, proxy_port, proxy_user, proxy_pass);
 	QObject::connect(a, SIGNAL(quit()), &app, SLOT(quit()));
 	app.exec();
 	delete a;

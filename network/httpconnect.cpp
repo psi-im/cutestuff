@@ -136,6 +136,13 @@ void HttpConnect::connectToHost(const QString &proxyHost, int proxyPort, const Q
 	d->real_host = host;
 	d->real_port = port;
 
+#ifdef PROX_DEBUG
+	fprintf(stderr, "HttpConnect: Connecting to %s:%d", proxyHost.latin1(), proxyPort);
+	if(d->user.isEmpty())
+		fprintf(stderr, "\n");
+	else
+		fprintf(stderr, ", auth {%s,%s}\n", d->user.latin1(), d->pass.latin1());
+#endif
 	d->sock.connectToHost(d->host, d->port);
 }
 
@@ -210,7 +217,7 @@ void HttpConnect::sock_connected()
 	s += QString("CONNECT ") + d->real_host + ':' + QString::number(d->real_port) + " HTTP/1.0\r\n";
 	if(!d->user.isEmpty()) {
 		QString str = d->user + ':' + d->pass;
-		//s += QString("Proxy-Authorization: Basic ") + base64Encode( b.latin1() ) + "\r\n";
+		s += QString("Proxy-Authorization: Basic ") + Base64::encodeString(str) + "\r\n";
 	}
 	s += QString("Proxy-Connection: Keep-Alive\r\nPragma: no-cache\r\n");
 	s += "\r\n";

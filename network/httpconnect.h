@@ -22,6 +22,7 @@
 #define CS_HTTPCONNECT_H
 
 #include"../util/bytestream.h"
+#include"../util/base64.h"
 
 class HttpConnect : public ByteStream
 {

@@ -7,7 +7,7 @@ class App : public QObject
 {
 	Q_OBJECT
 public:
-	App(int mode, const QString &host, int port, const QString &serv, const QString &proxy_host, int proxy_port);
+	App(int mode, const QString &host, int port, const QString &serv, const QString &proxy_host, int proxy_port, const QString &proxy_user, const QString &proxy_pass);
 	~App();
 
 signals:
