@@ -1,9 +1,11 @@
-code:
+test:
   httppoll
-  socksclient: GSS-API
+  sasl
+
+code:
   sasl: security flags?
-  qssl
-  securestream
+  qssl: server support, certificate information, hostname verify
+  securestream: wrap qssl as bytestream
   idle
   import misha's iconset code
 
