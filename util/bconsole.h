@@ -23,10 +23,6 @@
 
 #include"bytestream.h"
 
-#ifdef CS_NAMESPACE
-namespace CS_NAMESPACE {
-#endif
-
 class BConsole : public ByteStream
 {
 	Q_OBJECT
@@ -48,9 +44,5 @@ private:
 	class Private;
 	Private *d;
 };
-
-#ifdef CS_NAMESPACE
-}
-#endif
 
 #endif

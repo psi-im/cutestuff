@@ -20,10 +20,6 @@
 
 #include"bconsole.h"
 
-#ifdef CS_NAMESPACE
-using namespace CS_NAMESPACE;
-#endif
-
 #include<qsocketnotifier.h>
 #include<unistd.h>
 #include<fcntl.h>
