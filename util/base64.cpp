@@ -152,6 +152,10 @@ QString Base64::arrayToString(const QByteArray &a)
 QByteArray Base64::stringToArray(const QString &s)
 {
 	const char *c = s.latin1();
+	if ( !c ) { // don't crash if s.isNull()
+		QByteArray a;
+		return a;
+	}
 	int len = strlen(c);
 	QByteArray b(len);
 	memcpy(b.data(), c, len);
