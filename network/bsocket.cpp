@@ -24,7 +24,9 @@
 #include<qsocket.h>
 #include<qdns.h>
 #include"safedelete.h"
+#ifndef NO_NDNS
 #include"ndns.h"
+#endif
 #include"srvresolver.h"
 
 #ifdef BS_DEBUG
@@ -44,11 +46,12 @@ public:
 	QSocket *qsock;
 	int state;
 
+#ifndef NO_NDNS
 	NDns ndns;
+#endif
 	SrvResolver srv;
 	QString host;
 	int port;
-	QHostAddress peerAddress;
 	SafeDelete sd;
 };
 
@@ -56,7 +59,9 @@ BSocket::BSocket(QObject *parent)
 :ByteStream(parent)
 {
 	d = new Private;
+#ifndef NO_NDNS
 	connect(&d->ndns, SIGNAL(resultsReady()), SLOT(ndns_done()));
+#endif
 	connect(&d->srv, SIGNAL(resultsReady()), SLOT(srv_done()));
 
 	reset();
@@ -77,8 +82,10 @@ void BSocket::reset(bool clear)
 	}
 	if(d->srv.isBusy())
 		d->srv.stop();
+#ifndef NO_NDNS
 	if(d->ndns.isBusy())
 		d->ndns.stop();
+#endif
 	if(clear)
 		clearReadBuffer();
 	d->state = Idle;
@@ -88,6 +95,7 @@ void BSocket::ensureSocket()
 {
 	if(!d->qsock) {
 		d->qsock = new QSocket;
+		connect(d->qsock, SIGNAL(hostFound()), SLOT(qs_hostFound()));
 		connect(d->qsock, SIGNAL(connected()), SLOT(qs_connected()));
 		connect(d->qsock, SIGNAL(connectionClosed()), SLOT(qs_connectionClosed()));
 		connect(d->qsock, SIGNAL(delayedCloseFinished()), SLOT(qs_delayedCloseFinished()));
@@ -102,8 +110,13 @@ void BSocket::connectToHost(const QString &host, Q_UINT16 port)
 	reset(true);
 	d->host = host;
 	d->port = port;
+#ifdef NO_NDNS
+	d->state = Connecting;
+	do_connect();
+#else
 	d->state = HostLookup;
 	d->ndns.resolve(d->host);
+#endif
 }
 
 void BSocket::connectToServer(const QString &srv, const QString &type)
@@ -179,39 +192,64 @@ int BSocket::bytesToWrite() const
 	return d->qsock->bytesToWrite();
 }
 
+QHostAddress BSocket::address() const
+{
+	if(d->qsock)
+		return d->qsock->address();
+	else
+		return QHostAddress();
+}
+
+Q_UINT16 BSocket::port() const
+{
+	if(d->qsock)
+		return d->qsock->port();
+	else
+		return 0;
+}
+
 QHostAddress BSocket::peerAddress() const
 {
-	return d->peerAddress;
+	if(d->qsock)
+		return d->qsock->peerAddress();
+	else
+		return QHostAddress();
 }
 
 Q_UINT16 BSocket::peerPort() const
 {
-	return d->port;
+	if(d->qsock)
+		return d->qsock->port();
+	else
+		return 0;
 }
 
 void BSocket::srv_done()
 {
-	if(d->srv.result()) {
-		d->host = d->srv.resultString();
-		d->port = d->srv.resultPort();
-		d->peerAddress = QHostAddress(d->srv.result());
-		do_connect();
-	}
-	else {
+	if(d->srv.failed()) {
 #ifdef BS_DEBUG
 		fprintf(stderr, "BSocket: Error resolving hostname.\n");
 #endif
 		error(ErrHostNotFound);
+		return;
 	}
+
+	d->host = d->srv.resultAddress().toString();
+	d->port = d->srv.resultPort();
+	do_connect();
+	//QTimer::singleShot(0, this, SLOT(do_connect()));
+	//hostFound();
 }
 
 void BSocket::ndns_done()
 {
+#ifndef NO_NDNS
 	if(d->ndns.result()) {
 		d->host = d->ndns.resultString();
-		d->peerAddress = QHostAddress(d->ndns.result());
 		d->state = Connecting;
 		do_connect();
+		//QTimer::singleShot(0, this, SLOT(do_connect()));
+		//hostFound();
 	}
 	else {
 #ifdef BS_DEBUG
@@ -219,6 +257,7 @@ void BSocket::ndns_done()
 #endif
 		error(ErrHostNotFound);
 	}
+#endif
 }
 
 void BSocket::do_connect()
@@ -228,6 +267,11 @@ void BSocket::do_connect()
 #endif
 	ensureSocket();
 	d->qsock->connectToHost(d->host, d->port);
+}
+
+void BSocket::qs_hostFound()
+{
+	//SafeDeleteLock s(&d->sd);
 }
 
 void BSocket::qs_connected()
