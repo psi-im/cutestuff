@@ -175,7 +175,7 @@ void NDnsManager::resolve(NDns *self, const QString &name)
 {
 	Item *i = new Item;
 	i->ndns = self;
-	i->worker = new NDnsWorker(this, name.latin1());
+	i->worker = new NDnsWorker(this, name.utf8());
 	d->list.append(i);
 
 	i->worker->start();

@@ -227,8 +227,10 @@ static QByteArray sp_set_connectRequest(const QString &host, Q_UINT16 port, unsi
 	if(addr.setAddress(host))
 		return sp_set_connectRequest(addr, port, cmd1);
 
-	QString h = host;
+	QCString h = host.utf8();
 	h.truncate(255);
+	h = QString::fromUtf8(h).utf8(); // delete any partial characters?
+	int hlen = h.length();
 
 	int at = 0;
 	QByteArray a(4);
@@ -238,10 +240,10 @@ static QByteArray sp_set_connectRequest(const QString &host, Q_UINT16 port, unsi
 	a[at++] = 0x03; // address type = domain
 
 	// host
-	a.resize(at+h.length());
-	a[at++] = h.length();
-	memcpy(a.data() + at, h.latin1(), h.length());
-	at += h.length();
+	a.resize(at+hlen+1);
+	a[at++] = hlen;
+	memcpy(a.data() + at, h.data(), hlen);
+	at += hlen;
 
 	// port
 	a.resize(at+2);
