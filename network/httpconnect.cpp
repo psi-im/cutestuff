@@ -28,6 +28,10 @@
 #include<stdio.h>
 #endif
 
+#ifdef CS_NAMESPACE
+using namespace CS_NAMESPACE;
+#endif
+
 static QString extractLine(QByteArray *buf, bool *found)
 {
 	// scan for newline

@@ -20,6 +20,10 @@
 
 #include"bconsole.h"
 
+#ifdef CS_NAMESPACE
+using namespace CS_NAMESPACE;
+#endif
+
 #include<qsocketnotifier.h>
 #include<unistd.h>
 #include<fcntl.h>
@@ -50,8 +54,7 @@ BConsole::BConsole(QObject *parent)
 
 	d->r = new QSocketNotifier(0, QSocketNotifier::Read);
 	connect(d->r, SIGNAL(activated(int)), SLOT(sn_read()));
-	d->w = new QSocketNotifier(1, QSocketNotifier::Write);
-	connect(d->w, SIGNAL(activated(int)), SLOT(sn_write()));
+	d->w = 0;
 }
 
 BConsole::~BConsole()
@@ -98,6 +101,9 @@ void BConsole::sn_read()
 
 void BConsole::sn_write()
 {
+	d->w->deleteLater();
+	d->w = 0;
+
 	if(bytesToWrite() > 0)
 		tryWrite();
 	if(bytesToWrite() == 0 && d->closing) {
@@ -118,6 +124,9 @@ int BConsole::tryWrite()
 		error(ErrWrite);
 		return -1;
 	}
+
+	d->w = new QSocketNotifier(1, QSocketNotifier::Write);
+	connect(d->w, SIGNAL(activated(int)), SLOT(sn_write()));
 
 	takeWrite(r);
 	bytesWritten(r);

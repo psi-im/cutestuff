@@ -32,6 +32,14 @@
 #include<stdio.h>
 #endif
 
+#ifdef XMPP_TEST
+#include"td.h"
+#endif
+
+#ifdef CS_NAMESPACE
+using namespace CS_NAMESPACE;
+#endif
+
 //----------------------------------------------------------------------------
 // HttpPoll
 //----------------------------------------------------------------------------
@@ -53,6 +61,7 @@ public:
 	int port;
 	QString user, pass;
 	QString url;
+	bool use_proxy;
 
 	QByteArray out;
 
@@ -64,6 +73,8 @@ public:
 
 	QString key[256];
 	int key_n;
+
+	int polltime;
 };
 
 HttpPoll::HttpPoll(QObject *parent)
@@ -71,6 +82,7 @@ HttpPoll::HttpPoll(QObject *parent)
 {
 	d = new Private;
 
+	d->polltime = 30;
 	d->t = new QTimer;
 	connect(d->t, SIGNAL(timeout()), SLOT(do_sync()));
 
@@ -106,13 +118,32 @@ void HttpPoll::setAuth(const QString &user, const QString &pass)
 	d->pass = pass;
 }
 
+void HttpPoll::connectToUrl(const QString &url)
+{
+	connectToHost("", 0, url);
+}
+
 void HttpPoll::connectToHost(const QString &proxyHost, int proxyPort, const QString &url)
 {
 	reset(true);
 
-	d->host = proxyHost;
-	d->port = proxyPort;
-	d->url = url;
+	// using proxy?
+	if(!proxyHost.isEmpty()) {
+		d->host = proxyHost;
+		d->port = proxyPort;
+		d->url = url;
+		d->use_proxy = true;
+	}
+	else {
+		QUrl u = url;
+		d->host = u.host();
+		if(u.hasPort())
+			d->port = u.port();
+		else
+			d->port = 80;
+		d->url = u.path(false);
+		d->use_proxy = false;
+	}
 
 	resetKey();
 	bool last;
@@ -125,9 +156,12 @@ void HttpPoll::connectToHost(const QString &proxyHost, int proxyPort, const QStr
 	else
 		fprintf(stderr, ", auth {%s,%s}\n", d->user.latin1(), d->pass.latin1());
 #endif
+#ifdef XMPP_TEST
+	TD::msg("HttpPoll: connecting");
+#endif
 	d->state = 1;
 	d->http.setAuth(d->user, d->pass);
-	d->http.post(d->host, d->port, d->url, makePacket("0", key, "", QByteArray()));
+	d->http.post(d->host, d->port, d->url, makePacket("0", key, "", QByteArray()), d->use_proxy);
 }
 
 QByteArray HttpPoll::makePacket(const QString &ident, const QString &key, const QString &newkey, const QByteArray &block)
@@ -151,6 +185,16 @@ QByteArray HttpPoll::makePacket(const QString &ident, const QString &key, const 
 	return a;
 }
 
+int HttpPoll::pollInterval() const
+{
+	return d->polltime;
+}
+
+void HttpPoll::setPollInterval(int seconds)
+{
+	d->polltime = seconds;
+}
+
 bool HttpPoll::isOpen() const
 {
 	return (d->state == 2 ? true: false);
@@ -169,6 +213,9 @@ void HttpPoll::close()
 
 void HttpPoll::http_result()
 {
+#ifdef XMPP_TEST
+	TD::msg("HttpPoll: done");
+#endif
 	// get id and packet
 	QString id;
 	QString cookie = d->http.getHeader("Set-Cookie");
@@ -221,7 +268,8 @@ void HttpPoll::http_result()
 	}
 
 	if(bytesToWrite() > 0) {
-		do_sync();
+		if(!d->http.isActive())
+			do_sync();
 	}
 	else {
 		if(d->closing) {
@@ -230,13 +278,16 @@ void HttpPoll::http_result()
 			return;
 		}
 
-		// sync up again in 1 minute
-		d->t->start(30000, true);
+		// sync up again soon
+		d->t->start(d->polltime * 1000, true);
 	}
 }
 
 void HttpPoll::http_error(int x)
 {
+#ifdef XMPP_TEST
+	TD::msg("HttpPoll: error");
+#endif
 	reset();
 	if(x == HttpProxyPost::ErrConnectionRefused)
 		error(ErrConnectionRefused);
@@ -271,7 +322,10 @@ void HttpPoll::do_sync()
 		resetKey();
 		newkey = getKey(&last);
 	}
-	d->http.post(d->host, d->port, d->url, makePacket(d->ident, key, newkey, d->out));
+#ifdef XMPP_TEST
+	TD::msg("HttpPoll: syncing");
+#endif
+	d->http.post(d->host, d->port, d->url, makePacket(d->ident, key, newkey, d->out), d->use_proxy);
 }
 
 void HttpPoll::resetKey()
@@ -356,6 +410,8 @@ public:
 	QString user, pass;
 	bool inHeader;
 	QStringList headerLines;
+	bool asProxy;
+	QString host;
 };
 
 HttpProxyPost::HttpProxyPost(QObject *parent)
@@ -395,12 +451,14 @@ bool HttpProxyPost::isActive() const
 	return (d->sock.state() == BSocket::Idle ? false: true);
 }
 
-void HttpProxyPost::post(const QString &proxyHost, int proxyPort, const QString &url, const QByteArray &data)
+void HttpProxyPost::post(const QString &proxyHost, int proxyPort, const QString &url, const QByteArray &data, bool asProxy)
 {
 	reset(true);
 
+	d->host = proxyHost;
 	d->url = url;
 	d->postdata = data;
+	d->asProxy = asProxy;
 
 #ifdef PROX_DEBUG
 	fprintf(stderr, "HttpProxyPost: Connecting to %s:%d", proxyHost.latin1(), proxyPort);
@@ -449,13 +507,18 @@ void HttpProxyPost::sock_connected()
 	// connected, now send the request
 	QString s;
 	s += QString("POST ") + d->url + " HTTP/1.0\r\n";
-	if(!d->user.isEmpty()) {
-		QString str = d->user + ':' + d->pass;
-		s += QString("Proxy-Authorization: Basic ") + Base64::encodeString(str) + "\r\n";
+	if(d->asProxy) {
+		if(!d->user.isEmpty()) {
+			QString str = d->user + ':' + d->pass;
+			s += QString("Proxy-Authorization: Basic ") + Base64::encodeString(str) + "\r\n";
+		}
+		s += "Proxy-Connection: Keep-Alive\r\n";
+		s += "Pragma: no-cache\r\n";
+		s += QString("Host: ") + u.host() + "\r\n";
 	}
-	s += "Proxy-Connection: Keep-Alive\r\n";
-	s += "Pragma: no-cache\r\n";
-	s += QString("Host: ") + u.host() + "\r\n";
+	else {
+		s += QString("Host: ") + d->host + "\r\n";
+	}
 	s += "Content-Type: application/x-www-form-urlencoded\r\n";
 	s += QString("Content-Length: ") + QString::number(d->postdata.size()) + "\r\n";
 	s += "\r\n";

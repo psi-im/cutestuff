@@ -24,7 +24,7 @@ int main()
 	order.appendChild(e);
 	printf("---- Original\n%s----\n\n", elemToString(order).data());
 
-	Cipher::Type mainKeyType = Cipher::AES_256;
+	Cipher::Type mainKeyType = Cipher::TripleDES;
 	Cipher::Type subKeyType = Cipher::AES_256;
 
 	RSAKey rsa = generateRSAKey();
@@ -49,7 +49,10 @@ int main()
 	printf("result2[%d]\n", result2.size());
 	printf("{%s}\n", result2.data());
 
+	QByteArray iv = Cipher::generateIV(mainKeyType);
+	printf("ivsize=[%d]\n", iv.size());
 	Cipher::Key key1 = Cipher::generateKey(mainKeyType);
+	printf("keysize=[%d]\n", key1.data().size());
 	Cipher::Key key = Cipher::generateKey(subKeyType);
 	printf("Key: { ");
 	for(int n = 0; n < (int)key.data().size(); ++n)

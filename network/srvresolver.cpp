@@ -21,6 +21,7 @@
 #include"srvresolver.h"
 
 #include<qcstring.h>
+#include<qtimer.h>
 #include<qdns.h>
 #include"ndns.h"
 
@@ -60,8 +61,11 @@ public:
 	QString resultString;
 	Q_UINT16 resultPort;
 
+	bool srvonly;
 	QString srv;
 	QValueList<QDns::Server> servers;
+
+	QTimer t;
 };
 
 SrvResolver::SrvResolver(QObject *parent)
@@ -71,6 +75,7 @@ SrvResolver::SrvResolver(QObject *parent)
 	d->qdns = 0;
 
 	connect(&d->ndns, SIGNAL(resultsReady()), SLOT(ndns_done()));
+	connect(&d->t, SIGNAL(timeout()), SLOT(t_timeout()));
 	stop();
 }
 
@@ -84,7 +89,22 @@ void SrvResolver::resolve(const QString &server, const QString &type, const QStr
 {
 	stop();
 
+	d->srvonly = false;
 	d->srv = QString("_") + type + "._" + proto + '.' + server;
+	d->t.start(15000, true);
+	d->qdns = new QDns;
+	connect(d->qdns, SIGNAL(resultsReady()), SLOT(qdns_done()));
+	d->qdns->setRecordType(QDns::Srv);
+	d->qdns->setLabel(d->srv);
+}
+
+void SrvResolver::resolveSrvOnly(const QString &server, const QString &type, const QString &proto)
+{
+	stop();
+
+	d->srvonly = true;
+	d->srv = QString("_") + type + "._" + proto + '.' + server;
+	d->t.start(15000, true);
 	d->qdns = new QDns;
 	connect(d->qdns, SIGNAL(resultsReady()), SLOT(qdns_done()));
 	d->qdns->setRecordType(QDns::Srv);
@@ -101,7 +121,10 @@ void SrvResolver::next()
 
 void SrvResolver::stop()
 {
+	if(d->t.isActive())
+		d->t.stop();
 	if(d->qdns) {
+		d->qdns->disconnect(this);
 		d->qdns->deleteLater();
 		d->qdns = 0;
 	}
@@ -120,6 +143,11 @@ bool SrvResolver::isBusy() const
 		return true;
 	else
 		return false;
+}
+
+QValueList<QDns::Server> SrvResolver::servers() const
+{
+	return d->servers;
 }
 
 uint SrvResolver::result() const
@@ -144,15 +172,20 @@ void SrvResolver::tryNext()
 
 void SrvResolver::qdns_done()
 {
+	if(!d->qdns)
+		return;
+
 	// apparently we sometimes get this signal even though the results aren't ready
 	if(d->qdns->isWorking())
 		return;
+	d->t.stop();
 
 	// grab the server list and destroy the qdns object
 	QValueList<QDns::Server> list;
 	if(d->qdns->recordType() == QDns::Srv)
 		list = d->qdns->servers();
-	delete d->qdns;
+	d->qdns->disconnect(this);
+	d->qdns->deleteLater();
 	d->qdns = 0;
 
 	if(list.isEmpty()) {
@@ -163,8 +196,12 @@ void SrvResolver::qdns_done()
 	sortSRVList(list);
 	d->servers = list;
 
-	// kick it off
-	tryNext();
+	if(d->srvonly)
+		resultsReady();
+	else {
+		// kick it off
+		tryNext();
+	}
 }
 
 void SrvResolver::ndns_done()
@@ -190,4 +227,10 @@ void SrvResolver::ndns_done()
 		// otherwise try the next
 		tryNext();
 	}
+}
+
+void SrvResolver::t_timeout()
+{
+	stop();
+	resultsReady();
 }

@@ -22,7 +22,12 @@
 #define CS_BSOCKET_H
 
 #include<qobject.h>
+#include<qhostaddress.h>
 #include"bytestream.h"
+
+#ifdef CS_NAMESPACE
+namespace CS_NAMESPACE {
+#endif
 
 class BSocket : public ByteStream
 {
@@ -43,6 +48,9 @@ public:
 	void close();
 	void write(const QByteArray &);
 	int bytesToWrite() const;
+
+	QHostAddress peerAddress() const;
+	Q_UINT16 peerPort() const;
 
 signals:
 	void connected();
@@ -65,5 +73,9 @@ private:
 	void do_connect();
 	void ensureSocket();
 };
+
+#ifdef CS_NAMESPACE
+}
+#endif
 
 #endif

@@ -30,10 +30,17 @@
 #include<stdio.h>
 #endif
 
+#ifdef CS_NAMESPACE
+using namespace CS_NAMESPACE;
+#endif
+
 class BSocket::Private
 {
 public:
-	Private() {}
+	Private()
+	{
+		qsock = 0;
+	}
 
 	QSocket *qsock;
 	int state;
@@ -42,13 +49,13 @@ public:
 	SrvResolver srv;
 	QString host;
 	int port;
+	QHostAddress peerAddress;
 };
 
 BSocket::BSocket(QObject *parent)
 :ByteStream(parent)
 {
 	d = new Private;
-	d->qsock = 0;
 	connect(&d->ndns, SIGNAL(resultsReady()), SLOT(ndns_done()));
 	connect(&d->srv, SIGNAL(resultsReady()), SLOT(srv_done()));
 
@@ -64,6 +71,7 @@ BSocket::~BSocket()
 void BSocket::reset(bool clear)
 {
 	if(d->qsock) {
+		d->qsock->disconnect(this);
 		d->qsock->deleteLater();
 		d->qsock = 0;
 	}
@@ -91,8 +99,6 @@ void BSocket::ensureSocket()
 
 void BSocket::connectToHost(const QString &host, Q_UINT16 port)
 {
-	if(d->qsock)
-		d->qsock->close();
 	reset(true);
 	d->host = host;
 	d->port = port;
@@ -102,8 +108,6 @@ void BSocket::connectToHost(const QString &host, Q_UINT16 port)
 
 void BSocket::connectToServer(const QString &srv, const QString &type)
 {
-	if(d->qsock)
-		d->qsock->close();
 	reset(true);
 	d->state = HostLookup;
 	d->srv.resolve(srv, type, "tcp");
@@ -111,12 +115,10 @@ void BSocket::connectToServer(const QString &srv, const QString &type)
 
 void BSocket::setSocket(int s)
 {
-	if(d->qsock)
-		d->qsock->close();
 	reset(true);
 	ensureSocket();
-	d->qsock->setSocket(s);
 	d->state = Connected;
+	d->qsock->setSocket(s);
 }
 
 int BSocket::state() const
@@ -169,11 +171,22 @@ int BSocket::bytesToWrite() const
 	return d->qsock->bytesToWrite();
 }
 
+QHostAddress BSocket::peerAddress() const
+{
+	return d->peerAddress;
+}
+
+Q_UINT16 BSocket::peerPort() const
+{
+	return d->port;
+}
+
 void BSocket::srv_done()
 {
 	if(d->srv.result()) {
 		d->host = d->srv.resultString();
 		d->port = d->srv.resultPort();
+		d->peerAddress = QHostAddress(d->srv.result());
 		do_connect();
 	}
 	else {
@@ -188,6 +201,7 @@ void BSocket::ndns_done()
 {
 	if(d->ndns.result()) {
 		d->host = d->ndns.resultString();
+		d->peerAddress = QHostAddress(d->ndns.result());
 		d->state = Connecting;
 		do_connect();
 	}
@@ -232,7 +246,6 @@ void BSocket::qs_delayedCloseFinished()
 	fprintf(stderr, "BSocket: Delayed Close Finished.\n");
 #endif
 	reset();
-
 	delayedCloseFinished();
 }
 

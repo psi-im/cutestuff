@@ -24,6 +24,11 @@
 #include<qobject.h>
 #include<qcstring.h>
 
+#ifdef CS_NAMESPACE
+namespace CS_NAMESPACE {
+#endif
+
+// CS_EXPORT_BEGIN
 class ByteStream : public QObject
 {
 	Q_OBJECT
@@ -68,5 +73,10 @@ private:
 	Private *d;
 //! \endif
 };
+// CS_EXPORT_END
+
+#ifdef CS_NAMESPACE
+}
+#endif
 
 #endif

@@ -4,7 +4,7 @@
 
 uchar QRandom::randomChar()
 {
-	rand();
+	return rand();
 }
 
 uint QRandom::randomInt()

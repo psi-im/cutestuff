@@ -23,6 +23,10 @@
 
 #include"bytestream.h"
 
+#ifdef CS_NAMESPACE
+namespace CS_NAMESPACE {
+#endif
+
 class HttpPoll : public ByteStream
 {
 	Q_OBJECT
@@ -32,7 +36,11 @@ public:
 	~HttpPoll();
 
 	void setAuth(const QString &user, const QString &pass="");
+	void connectToUrl(const QString &url);
 	void connectToHost(const QString &proxyHost, int proxyPort, const QString &url);
+
+	int pollInterval() const;
+	void setPollInterval(int seconds);
 
 	// from ByteStream
 	bool isOpen() const;
@@ -69,7 +77,7 @@ public:
 
 	void setAuth(const QString &user, const QString &pass="");
 	bool isActive() const;
-	void post(const QString &proxyHost, int proxyPort, const QString &url, const QByteArray &data);
+	void post(const QString &proxyHost, int proxyPort, const QString &url, const QByteArray &data, bool asProxy=true);
 	void stop();
 	QByteArray body() const;
 	QString getHeader(const QString &) const;
@@ -90,5 +98,9 @@ private:
 
 	void reset(bool clear=false);
 };
+
+#ifdef CS_NAMESPACE
+}
+#endif
 
 #endif

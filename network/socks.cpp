@@ -32,6 +32,9 @@
 #include<stdio.h>
 #endif
 
+#ifdef CS_NAMESPACE
+using namespace CS_NAMESPACE;
+#endif
 
 //----------------------------------------------------------------------------
 // SocksClient

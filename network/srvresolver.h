@@ -21,7 +21,8 @@
 #ifndef CS_SRVRESOLVER_H
 #define CS_SRVRESOLVER_H
 
-#include<qobject.h>
+#include<qvaluelist.h>
+#include<qdns.h>
 
 class SrvResolver : public QObject
 {
@@ -31,9 +32,12 @@ public:
 	~SrvResolver();
 
 	void resolve(const QString &server, const QString &type, const QString &proto);
+	void resolveSrvOnly(const QString &server, const QString &type, const QString &proto);
 	void next();
 	void stop();
 	bool isBusy() const;
+
+	QValueList<QDns::Server> servers() const;
 
 	uint result() const;
 	QString resultString() const;
@@ -45,6 +49,7 @@ signals:
 private slots:
 	void qdns_done();
 	void ndns_done();
+	void t_timeout();
 
 private:
 	class Private;

@@ -23,6 +23,10 @@
 
 #include"bytestream.h"
 
+#ifdef CS_NAMESPACE
+namespace CS_NAMESPACE {
+#endif
+
 class HttpConnect : public ByteStream
 {
 	Q_OBJECT
@@ -59,5 +63,9 @@ private:
 
 	void reset(bool clear=false);
 };
+
+#ifdef CS_NAMESPACE
+}
+#endif
 
 #endif

@@ -20,6 +20,10 @@
 
 #include"bytestream.h"
 
+#ifdef CS_NAMESPACE
+using namespace CS_NAMESPACE;
+#endif
+
 //! \class ByteStream bytestream.h
 //! \brief Base class for "bytestreams"
 //! 

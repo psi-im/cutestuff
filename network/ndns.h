@@ -66,6 +66,9 @@ protected:
 	bool event(QEvent *);
 //! \endif
 
+private slots:
+	void app_aboutToQuit();
+
 private:
 	class Private;
 	Private *d;

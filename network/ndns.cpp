@@ -146,6 +146,8 @@ NDnsManager::NDnsManager()
 
 	d = new Private;
 	d->list.setAutoDelete(true);
+
+	connect(qApp, SIGNAL(aboutToQuit()), SLOT(app_aboutToQuit()));
 }
 
 NDnsManager::~NDnsManager()
@@ -225,6 +227,12 @@ void NDnsManager::tryDestroy()
 		man = 0;
 		delete this;
 	}
+}
+
+void NDnsManager::app_aboutToQuit()
+{
+	while(man)
+		qApp->processEvents();
 }
 
 
