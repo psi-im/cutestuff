@@ -38,7 +38,6 @@
 #include"servsock.h"
 #include"bsocket.h"
 
-#define PROX_DEBUG
 #ifdef PROX_DEBUG
 #include<stdio.h>
 #endif
