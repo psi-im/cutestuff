@@ -389,22 +389,21 @@ void SocksClient::sock_readyRead()
 				}
 
 				QString str;
-				if(s.method == 0) {
+				if(s.method == 0x00) {
 					str = "None";
 					d->authMethod = AuthNone;
 				}
-				else if(s.method == 1) {
+				else if(s.method == 0x01) {
 					str = "GSSAPI";
 					d->authMethod = AuthGSSAPI;
 				}
-				else if(s.method == 2) {
+				else if(s.method == 0x02) {
 					str = "Username/Password";
 					d->authMethod = AuthUsername;
 				}
 				else {
 #ifdef PROX_DEBUG
-					str = QString::number(s.method, 16);
-					fprintf(stderr, "SocksClient: Server wants to use unknown method '%s'\n", str.latin1());
+					fprintf(stderr, "SocksClient: Server wants to use unknown method '%02x'\n", s.method);
 #endif
 					return;
 				}
