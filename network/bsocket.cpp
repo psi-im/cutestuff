@@ -23,6 +23,7 @@
 #include<qcstring.h>
 #include<qsocket.h>
 #include<qdns.h>
+#include<qguardedptr.h>
 #include"safedelete.h"
 #ifndef NO_NDNS
 #include"ndns.h"
@@ -32,6 +33,8 @@
 #ifdef BS_DEBUG
 #include<stdio.h>
 #endif
+
+#define READBUFSIZE 65536
 
 // CS_NAMESPACE_BEGIN
 
@@ -77,17 +80,28 @@ void BSocket::reset(bool clear)
 {
 	if(d->qsock) {
 		d->qsock->disconnect(this);
+
+		if(!clear) {
+			// move remaining into the local queue
+			QByteArray block(d->qsock->bytesAvailable());
+			d->qsock->readBlock(block.data(), block.size());
+			appendRead(block);
+		}
+
 		d->sd.deleteLater(d->qsock);
 		d->qsock = 0;
 	}
+	else {
+		if(clear)
+			clearReadBuffer();
+	}
+
 	if(d->srv.isBusy())
 		d->srv.stop();
 #ifndef NO_NDNS
 	if(d->ndns.isBusy())
 		d->ndns.stop();
 #endif
-	if(clear)
-		clearReadBuffer();
 	d->state = Idle;
 }
 
@@ -95,6 +109,7 @@ void BSocket::ensureSocket()
 {
 	if(!d->qsock) {
 		d->qsock = new QSocket;
+		d->qsock->setReadBufferSize(READBUFSIZE);
 		connect(d->qsock, SIGNAL(hostFound()), SLOT(qs_hostFound()));
 		connect(d->qsock, SIGNAL(connected()), SLOT(qs_connected()));
 		connect(d->qsock, SIGNAL(connectionClosed()), SLOT(qs_connectionClosed()));
@@ -183,6 +198,37 @@ void BSocket::write(const QByteArray &a)
 	fprintf(stderr, "BSocket: writing [%d]: {%s}\n", a.size(), cs.data());
 #endif
 	d->qsock->writeBlock(a.data(), a.size());
+}
+
+QByteArray BSocket::read(int bytes)
+{
+	QByteArray block;
+	if(d->qsock) {
+		int max = bytesAvailable();
+		if(bytes <= 0 || bytes > max)
+			bytes = max;
+		block.resize(bytes);
+		d->qsock->readBlock(block.data(), block.size());
+	}
+	else
+		block = ByteStream::read(bytes);
+
+#ifdef BS_DEBUG
+	QCString cs;
+	cs.resize(block.size()+1);
+	memcpy(cs.data(), block.data(), block.size());
+	QString s = QString::fromUtf8(cs);
+	fprintf(stderr, "BSocket: read [%d]: {%s}\n", block.size(), s.latin1());
+#endif
+	return block;
+}
+
+int BSocket::bytesAvailable() const
+{
+	if(d->qsock)
+		return d->qsock->bytesAvailable();
+	else
+		return ByteStream::bytesAvailable();
 }
 
 int BSocket::bytesToWrite() const
@@ -306,27 +352,6 @@ void BSocket::qs_delayedCloseFinished()
 
 void BSocket::qs_readyRead()
 {
-	// read in the block
-	QByteArray block;
-	int len = d->qsock->bytesAvailable();
-	if(len < 1)
-		len = 1024; // zero bytes available?  we'll assume a bogus value and default to 1024
-	block.resize(len);
-	int actual = d->qsock->readBlock(block.data(), len);
-	if(actual < 1)
-		return;
-	block.resize(actual);
-
-#ifdef BS_DEBUG
-	QCString cs;
-	cs.resize(block.size()+1);
-	memcpy(cs.data(), block.data(), block.size());
-	QString s = QString::fromUtf8(cs);
-	fprintf(stderr, "BSocket: read [%d]: {%s}\n", block.size(), s.latin1());
-#endif
-
-	appendRead(block);
-
 	SafeDeleteLock s(&d->sd);
 	readyRead();
 }
@@ -345,13 +370,14 @@ void BSocket::qs_error(int x)
 #ifdef BS_DEBUG
 	fprintf(stderr, "BSocket: Error.\n");
 #endif
+	SafeDeleteLock s(&d->sd);
+
 	// connection error during SRV host connect?  try next
 	if(d->state == HostLookup && (x == QSocket::ErrConnectionRefused || x == QSocket::ErrHostNotFound)) {
 		d->srv.next();
 		return;
 	}
 
-	SafeDeleteLock s(&d->sd);
 	reset();
 	if(x == QSocket::ErrConnectionRefused)
 		error(ErrConnectionRefused);

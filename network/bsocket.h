@@ -46,6 +46,8 @@ public:
 	bool isOpen() const;
 	void close();
 	void write(const QByteArray &);
+	QByteArray read(int bytes=0);
+	int bytesAvailable() const;
 	int bytesToWrite() const;
 
 	// local
