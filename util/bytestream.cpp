@@ -1,6 +1,6 @@
 /*
  * bytestream.cpp - base class for bytestreams
- * Copyright (C) 2001, 2002  Justin Karneges
+ * Copyright (C) 2003  Justin Karneges
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -19,8 +19,6 @@
  */
 
 #include"bytestream.h"
-
-#include"../ssl/qssl.h"
 
 //----------------------------------------------------------------------------
 // ByteStream
@@ -49,76 +47,6 @@ int ByteStream::bytesAvailable() const
 }
 
 int ByteStream::bytesToWrite() const
-{
-	return 0;
-}
-
-
-//----------------------------------------------------------------------------
-// SecureStream
-//----------------------------------------------------------------------------
-class SecureStream::Private
-{
-public:
-	Private() {}
-
-	QSSLFilter *ssl;
-	ByteStream *bs;
-};
-
-SecureStream::SecureStream(ByteStream *bs, QSSLFilter *ssl, QObject *parent)
-:ByteStream(parent)
-{
-	d = new Private;
-	d->bs = bs;
-	d->ssl = ssl;
-}
-
-SecureStream::~SecureStream()
-{
-	delete d->ssl;
-	delete d->bs;
-	delete d;
-}
-
-ByteStream *SecureStream::byteStream() const
-{
-	return d->bs;
-}
-
-void SecureStream::startHandshake()
-{
-}
-
-void SecureStream::waitForHandshake()
-{
-}
-
-bool SecureStream::isOpen() const
-{
-	return false;
-}
-
-void SecureStream::close()
-{
-}
-
-int SecureStream::write(const QByteArray &)
-{
-	return 0;
-}
-
-QByteArray SecureStream::read(int bytes)
-{
-	return QByteArray();
-}
-
-int SecureStream::bytesAvailable() const
-{
-	return 0;
-}
-
-int SecureStream::bytesToWrite() const
 {
 	return 0;
 }

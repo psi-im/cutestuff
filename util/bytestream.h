@@ -1,6 +1,6 @@
 /*
  * bytestream.h - base class for bytestreams
- * Copyright (C) 2001, 2002  Justin Karneges
+ * Copyright (C) 2003  Justin Karneges
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -43,35 +43,6 @@ signals:
 	void readyRead();
 	void bytesWritten(int);
 	void error(int);
-};
-
-class QSSLFilter;
-
-class SecureStream : public ByteStream
-{
-	Q_OBJECT
-public:
-	SecureStream(ByteStream *, QSSLFilter *, QObject *parent=0);
-	~SecureStream();
-
-	ByteStream *byteStream() const;
-
-	void startHandshake();
-	void waitForHandshake();
-
-	bool isOpen() const;
-	void close();
-	int write(const QByteArray &)=0;
-	QByteArray read(int bytes=0)=0;
-	int bytesAvailable() const;
-	int bytesToWrite() const;
-
-signals:
-	void handshaken();
-
-private:
-	class Private;
-	Private *d;
 };
 
 #endif

@@ -1,6 +1,6 @@
 /*
  * bsocket.cpp - QSocket wrapper based on Bytestream with SRV DNS support
- * Copyright (C) 2001, 2002  Justin Karneges
+ * Copyright (C) 2003  Justin Karneges
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -19,14 +19,13 @@
  */
 
 #include"bsocket.h"
-//#define SS_DEBUG
 
 #include<qcstring.h>
 #include<qsocket.h>
 #include<qdns.h>
 #include"../network/ndns.h"
 
-#ifdef SS_DEBUG
+#ifdef BS_DEBUG
 #include<stdio.h>
 #endif
 
@@ -94,10 +93,14 @@ BSocket::~BSocket()
 
 void BSocket::reset(bool clear)
 {
-	delete d->qsock;
-	d->qsock = 0;
-	delete d->qdns;
-	d->qdns = 0;
+	if(d->qsock) {
+		d->qsock->deleteLater();
+		d->qsock = 0;
+	}
+	if(d->qdns) {
+		d->qdns->deleteLater();
+		d->qdns = 0;
+	}
 	if(d->ndns.isBusy())
 		d->ndns.stop();
 	if(clear)
@@ -163,7 +166,7 @@ int BSocket::state() const
 
 bool BSocket::isOpen() const
 {
-	if(d->qsock && d->qsock->state() == QSocket::Connected)
+	if(d->state == Connected)
 		return true;
 	else
 		return false;
@@ -171,6 +174,9 @@ bool BSocket::isOpen() const
 
 void BSocket::close()
 {
+	if(d->state == Idle)
+		return;
+
 	if(d->qsock) {
 		d->qsock->close();
 		d->state = Closing;
@@ -184,8 +190,15 @@ void BSocket::close()
 
 int BSocket::write(const QByteArray &a)
 {
-	if(!d->qsock)
+	if(d->state != Connected)
 		return -1;
+#ifdef BS_DEBUG
+	QCString cs;
+	cs.resize(a.size()+1);
+	memcpy(cs.data(), a.data(), a.size());
+	QString s = QString::fromUtf8(cs);
+	fprintf(stderr, "BSocket: writing: {%s}\n", cs.data());
+#endif
 	return d->qsock->writeBlock(a.data(), a.size());
 }
 
@@ -233,8 +246,8 @@ void BSocket::qdns_done()
 	d->qdns = 0;
 
 	if(list.isEmpty()) {
-#ifdef SS_DEBUG
-		printf("BSocket: Error retrieving SRV record.\n");
+#ifdef BS_DEBUG
+		fprintf(stderr, "BSocket: Error retrieving SRV record.\n");
 #endif
 		error(ErrHostNotFound);
 		return;
@@ -260,8 +273,8 @@ void BSocket::ndns_done()
 		do_connect();
 	}
 	else {
-#ifdef SS_DEBUG
-		printf("BSocket: Error resolving hostname.\n");
+#ifdef BS_DEBUG
+		fprintf(stderr, "BSocket: Error resolving hostname.\n");
 #endif
 		error(ErrHostNotFound);
 	}
@@ -269,8 +282,8 @@ void BSocket::ndns_done()
 
 void BSocket::do_connect()
 {
-#ifdef SS_DEBUG
-	printf("BSocket: Connecting to %s:%d\n", d->host.latin1(), d->port);
+#ifdef BS_DEBUG
+	fprintf(stderr, "BSocket: Connecting to %s:%d\n", d->host.latin1(), d->port);
 #endif
 	ensureSocket();
 	d->qsock->connectToHost(d->host, d->port);
@@ -279,31 +292,25 @@ void BSocket::do_connect()
 void BSocket::qs_connected()
 {
 	d->state = Connected;
-#ifdef SS_DEBUG
-	printf("BSocket: Connected.\n");
+#ifdef BS_DEBUG
+	fprintf(stderr, "BSocket: Connected.\n");
 #endif
 	connected();
-
-	QCString s("GET /\n\n");
-	d->qsock->writeBlock(s.data(), 7);
 }
 
 void BSocket::qs_connectionClosed()
 {
-#ifdef SS_DEBUG
-	printf("BSocket: Connection Closed.\n");
+#ifdef BS_DEBUG
+	fprintf(stderr, "BSocket: Connection Closed.\n");
 #endif
 	reset();
-#ifdef SS_DEBUG
-	printf("%d bytes available..\n", bytesAvailable());
-#endif
 	connectionClosed();
 }
 
 void BSocket::qs_delayedCloseFinished()
 {
-#ifdef SS_DEBUG
-	printf("BSocket: Delayed Close Finished.\n");
+#ifdef BS_DEBUG
+	fprintf(stderr, "BSocket: Delayed Close Finished.\n");
 #endif
 	reset();
 
@@ -323,8 +330,12 @@ void BSocket::qs_readyRead()
 		return;
 	block.resize(actual);
 
-#ifdef SS_DEBUG
-	printf("BSocket: ReadyRead [%d].\n", block.size());
+#ifdef BS_DEBUG
+	QCString cs;
+	cs.resize(block.size()+1);
+	memcpy(cs.data(), block.data(), block.size());
+	QString s = QString::fromUtf8(cs);
+	fprintf(stderr, "BSocket: read [%d]: {%s}\n", block.size(), s.latin1());
 #endif
 
 	int oldsize = d->recvBuf.size();
@@ -332,27 +343,20 @@ void BSocket::qs_readyRead()
 	memcpy(d->recvBuf.data() + oldsize, block.data(), block.size());
 
 	readyRead();
-
-	QByteArray a = read();
-	QCString cs;
-	cs.resize(a.size()+1);
-	memcpy(cs.data(), a.data(), a.size());
-	QString s = QString::fromUtf8(cs);
-	printf("%s", s.latin1());
 }
 
 void BSocket::qs_bytesWritten(int x)
 {
-#ifdef SS_DEBUG
-	printf("BSocket: BytesWritten [%d].\n", x);
+#ifdef BS_DEBUG
+	fprintf(stderr, "BSocket: BytesWritten [%d].\n", x);
 #endif
 	bytesWritten(x);
 }
 
 void BSocket::qs_error(int x)
 {
-#ifdef SS_DEBUG
-	printf("BSocket: Error.\n");
+#ifdef BS_DEBUG
+	fprintf(stderr, "BSocket: Error.\n");
 #endif
 	reset();
 	if(x == QSocket::ErrConnectionRefused)

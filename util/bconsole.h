@@ -1,5 +1,5 @@
 /*
- * httpconnect.h - HTTP "CONNECT" proxy
+ * bconsole.h - ByteStream wrapper for stdin/stdout
  * Copyright (C) 2003  Justin Karneges
  *
  * This library is free software; you can redistribute it and/or
@@ -18,23 +18,19 @@
  *
  */
 
-#ifndef CS_HTTPCONNECT_H
-#define CS_HTTPCONNECT_H
+#ifndef CS_BCONSOLE_H
+#define CS_BCONSOLE_H
 
 #include"../util/bytestream.h"
 
-class HttpConnect : public ByteStream
+class BConsole : public ByteStream
 {
 	Q_OBJECT
 public:
-	enum Error { ErrConnectionRefused, ErrHostNotFound, ErrSocketRead, ErrProxyConnect, ErrProxyNeg, ErrProxyAuth };
-	HttpConnect(QObject *parent=0);
-	~HttpConnect();
+	enum Error { ErrRead };
+	BConsole(QObject *parent=0);
+	~BConsole();
 
-	void setAuth(const QString &user, const QString &pass="");
-	void connectToHost(const QString &proxyHost, int proxyPort, const QString &host, int port);
-
-	// from ByteStream
 	bool isOpen() const;
 	void close();
 	int write(const QByteArray &);
@@ -42,22 +38,12 @@ public:
 	int bytesAvailable() const;
 	int bytesToWrite() const;
 
-signals:
-	void connected();
-
 private slots:
-	void sock_connected();
-	void sock_connectionClosed();
-	void sock_delayedCloseFinished();
-	void sock_readyRead();
-	void sock_bytesWritten(int);
-	void sock_error(int);
+	void sn_dataReady();
 
 private:
 	class Private;
 	Private *d;
-
-	void reset(bool clear=false);
 };
 
 #endif

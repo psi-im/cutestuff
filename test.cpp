@@ -1,24 +1,68 @@
+#include"test.h"
+
 #include<qapplication.h>
 #include"network/bsocket.h"
 #include"network/httpconnect.h"
 
+class App::Private
+{
+public:
+	Private() {}
+
+	HttpConnect h;
+};
+
+App::App()
+:QObject(0)
+{
+	d = new Private;
+
+	connect(&d->h, SIGNAL(connected()), SLOT(st_connected()));
+	connect(&d->h, SIGNAL(connectionClosed()), SLOT(st_connectionClosed()));
+	connect(&d->h, SIGNAL(error(int)), SLOT(st_error(int)));
+	d->h.setAuth("psi", "psi");
+	d->h.connectToHost("194.254.24.133", 3128, "jabber.org", 5222);
+	//d->h.connectToHost("home.homelesshackers.org", 80, "www.google.com", 80);
+}
+
+App::~App()
+{
+	delete d;
+}
+
+void App::st_connected()
+{
+	printf("app: connected\n");
+	QCString cs(
+	"<?xml version='1.0'?>\n"
+	"<stream:stream to='jabber.org' xmlns='jabber:client' xmlns:stream='http://etherx.jabber.org/streams' version='1.0'>\n");
+	int len = cs.length();
+	QByteArray a(len);
+	memcpy(a.data(), cs.data(), len);
+	d->h.write(a);
+}
+
+void App::st_connectionClosed()
+{
+	printf("closed.\n");
+	quit();
+}
+
+void App::st_error(int x)
+{
+	printf("err: %d\n", x);
+	quit();
+}
+
+
 int main(int argc, char **argv)
 {
-	if(argc < 2)
-		return 0;
-
 	QApplication app(argc, argv);
-	BSocket *s = new BSocket;
-	QObject::connect(s, SIGNAL(error(int)), &app, SLOT(quit()));
-	QObject::connect(s, SIGNAL(connectionClosed()), &app, SLOT(quit()));
 
-	if(argc > 2)
-		s->connectToHost(argv[1], atoi(argv[2]));
-	else
-		s->connectToServer(argv[1], "jabber");
-
+	App *a = new App;
+	QObject::connect(a, SIGNAL(quit()), &app, SLOT(quit()));
 	app.exec();
-	delete s;
+	delete a;
 
 	return 0;
 }

@@ -1,6 +1,12 @@
 code:
-  bytestream - finish QSSL support
+  securestream
   httpconnect
+    auth
+  bconsole
+    writing / closing
+  adconn
+    if necessary, wait for delayedCloseFinished() before exiting
+  merge utils: base64, sha1
   idle
 
 document:
