@@ -436,7 +436,7 @@ void SocksClient::close()
 void SocksClient::write(const QByteArray &buf)
 {
 	if(d->active)
-		return d->sock.write(buf);
+		d->sock.write(buf);
 }
 
 QByteArray SocksClient::read(int bytes)
