@@ -35,7 +35,6 @@ public:
 
 	int startIncoming(const QStringList &urls, ByteStream *server, int *incomingPort);
 	int startIncoming(const QStringList &urls, const QString &serverHost, int serverPort, int *incomingPort);
-	int startExisting(const QStringList &urls, ByteStream *client, ByteStream *server);
 	int startExisting(const QStringList &urls, ByteStream *client, const QString &serverHost, int serverPort);
 	void stop(int id);
 

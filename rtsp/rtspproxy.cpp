@@ -26,6 +26,19 @@
 #include "rtspbase.h"
 #include "altports.h"
 
+#define SERVER_ALLOC_BASE 16000
+#define SERVER_ALLOC_MAX  65535
+
+static bool try_serve(RTSP::Server *s)
+{
+	for(int n = SERVER_ALLOC_BASE; n <= SERVER_ALLOC_MAX; ++n)
+	{
+		if(s->start(n))
+			return true;
+	}
+	return false;
+}
+
 //----------------------------------------------------------------------------
 // PortMapper
 //----------------------------------------------------------------------------
@@ -350,15 +363,14 @@ class Session : public QObject
 {
 	Q_OBJECT
 public:
-	bool lastWasSetup;
-
 	Session()
 	{
 		client = 0;
 		server = 0;
-		mangle = false;
 
 		connect(&local, SIGNAL(incomingReady()), SLOT(local_incomingReady()));
+		connect(&mapper, SIGNAL(packetFromClient(int, int, const QByteArray &)), SLOT(map_packetFromClient(int, int, const QByteArray &)));
+		connect(&mapper, SIGNAL(packetFromServer(int, int, const QByteArray &)), SLOT(map_packetFromServer(int, int, const QByteArray &)));
 	}
 
 	~Session()
@@ -374,38 +386,65 @@ public:
 		server = 0;
 	}
 
-	/*bool startIncoming(const QStringList &_urls, ByteStream *_server, int *incomingPort)
+	bool startIncoming(const QValueList<QUrl> &_urls, ByteStream *_server, int *incomingPort)
 	{
 		urls = _urls;
-		server = new RTSP::Server;
+		server = new RTSP::Client;
 		server->setByteStream(_server, RTSP::Client::MServer);
-		local.start(8080);
-		*incomingPort = 8080;
-	}*/
 
-	bool startIncoming(const QValueList<QUrl> &_urls, const QString &serverHost, int serverPort, int *incomingPort)
-	{
-		urls = _urls;
-		shost = serverHost;
-		sport = serverPort;
-		if(!urls.isEmpty())
-			mangle = true;
-		if(!local.start(8080))
+		if(!try_serve(&local))
 			return false;
-		*incomingPort = 8080;
+
+		virtClient = false;
+		virtServer = true;
+		*incomingPort = local.port();
 		return true;
 	}
 
-	/*bool startExisting(const QStringList &urls, ByteStream *client, ByteStream *server)
+	bool startIncoming(const QValueList<QUrl> &_urls, const QString &serverHost, int serverPort, int *incomingPort)
 	{
+		if(_urls.isEmpty())
+			return false;
+
+		urls = _urls;
+		shost = serverHost;
+		sport = serverPort;
+
+		if(!try_serve(&local))
+			return false;
+
+		virtClient = false;
+		virtServer = false;
+		*incomingPort = local.port();
+		return true;
 	}
 
-	bool startExisting(const QStringList &urls, ByteStream *client, const QString &serverHost, int serverPort)
+	bool startExisting(const QValueList<QUrl> &_urls, ByteStream *_client, const QString &serverHost, int serverPort)
 	{
-	}*/
+		urls = _urls;
+		client = new RTSP::Client;
+		client->setByteStream(_client, RTSP::Client::MClient);
+		shost = serverHost;
+		sport = serverPort;
+
+		virtClient = true;
+		virtServer = false;
+		return true;
+	}
+
+	void writeAsClient(int source, int dest, const QByteArray &buf)
+	{
+		mapper.writeAsClient(source, dest, buf);
+	}
+
+	void writeAsServer(int source, int dest, const QByteArray &buf)
+	{
+		mapper.writeAsServer(source, dest, buf);
+	}
 
 signals:
-	void done();
+	void packetFromClient(int source, int dest, const QByteArray &buf);
+	void packetFromServer(int source, int dest, const QByteArray &buf);
 
 private slots:
 	void local_incomingReady()
@@ -414,7 +453,8 @@ private slots:
 		if(!c)
 			return;
 
-		//local.stop();
+		local.stop();
+
 		client = c;
 		connect(client, SIGNAL(connectionClosed()), SLOT(client_connectionClosed()));
 		connect(client, SIGNAL(packetReady(const Packet &)), SLOT(client_packetReady(const Packet &)));
@@ -433,12 +473,12 @@ private slots:
 	{
 		showPacket(p);
 
-		// mangle the packet
+		Packet m = p;
 		lastWasSetup = false;
-		if(mangle)
-		{
-			Packet m = p;
 
+		// unmangle the url?
+		if(!virtClient)
+		{
 			QUrl u = urls.first();
 			int u_port = u.hasPort() ? u.port() : 554;
 
@@ -447,30 +487,35 @@ private slots:
 			pu.setPort(u_port == 554 ? -1 : u_port);
 
 			m.setResource(pu.toString());
-
-			QString cmd = m.command();
-			if(cmd == "SETUP")
-			{
-				TransportList list = m.transports();
-				PortRangeList pl = transport_get_client_ports(list);
-				printf("SETUP ports [%d]:\n", pl.count());
-				for(PortRangeList::ConstIterator it = pl.begin(); it != pl.end(); ++it)
-					printf("[%d-%d] ", (*it).base, (*it).count);
-				printf("\n");
-				mapper.reserveDirectClient(pl, false);
-				PortRangeList altPorts = mapper.clientAlternatePorts();
-				printf("Alternate ports [%d]:\n", altPorts.count());
-				for(PortRangeList::ConstIterator it = altPorts.begin(); it != altPorts.end(); ++it)
-					printf("[%d-%d] ", (*it).base, (*it).count);
-				printf("\n");
-				m.setTransports(transport_set_client_ports(list, altPorts));
-				lastWasSetup = true;
-			}
-
-			cpackets.append(m);
 		}
-		else
-			cpackets.append(p);
+
+		QString cmd = m.command();
+		if(cmd == "SETUP")
+		{
+			TransportList list = m.transports();
+			PortRangeList pl = transport_get_client_ports(list);
+
+			/*printf("SETUP ports [%d]:\n", pl.count());
+			for(PortRangeList::ConstIterator it = pl.begin(); it != pl.end(); ++it)
+				printf("[%d-%d] ", (*it).base, (*it).count);
+			printf("\n");*/
+
+			if(virtClient)
+				mapper.reserveVirtualClient(pl);
+			else
+				mapper.reserveDirectClient(pl, virtServer);
+			PortRangeList altPorts = mapper.clientAlternatePorts();
+
+			/*printf("Alternate ports [%d]:\n", altPorts.count());
+			for(PortRangeList::ConstIterator it = altPorts.begin(); it != altPorts.end(); ++it)
+				printf("[%d-%d] ", (*it).base, (*it).count);
+			printf("\n");*/
+
+			m.setTransports(transport_set_client_ports(list, altPorts));
+			lastWasSetup = true;
+		}
+
+		cpackets.append(m);
 
 		// on receipt of first packet, connect to server if necessary
 		if(!server)
@@ -524,22 +569,24 @@ private slots:
 				TransportList list = m.transports();
 				PortRangeList cpl = transport_get_client_ports(list);
 				PortRangeList spl = transport_get_server_ports(list);
-				printf("SETUP ports [%d]:\n", cpl.count());
+
+				/*printf("SETUP ports [%d]:\n", cpl.count());
 				for(PortRangeList::ConstIterator it = cpl.begin(); it != cpl.end(); ++it)
 					printf("[%d-%d] ", (*it).base, (*it).count);
 				printf("\n");
 				printf("Server SETUP ports [%d]:\n", spl.count());
 				for(PortRangeList::ConstIterator it = spl.begin(); it != spl.end(); ++it)
 					printf("[%d-%d] ", (*it).base, (*it).count);
-				printf("\n");
+				printf("\n");*/
 
 				mapper.finalize(client->peerAddress(), cpl.first(), server->peerAddress(), spl.first());
-
 				PortRangeList altPorts = mapper.serverAlternatePorts();
-				printf("Alternate ports [%d]:\n", altPorts.count());
+
+				/*printf("Alternate ports [%d]:\n", altPorts.count());
 				for(PortRangeList::ConstIterator it = altPorts.begin(); it != altPorts.end(); ++it)
 					printf("[%d-%d] ", (*it).base, (*it).count);
-				printf("\n");
+				printf("\n");*/
+
 				m.setTransports(transport_set_server_ports(list, altPorts));
 			}
 			showPacket(m);
@@ -558,6 +605,16 @@ private slots:
 		reset();
 	}
 
+	void map_packetFromClient(int source, int dest, const QByteArray &buf)
+	{
+		packetFromClient(source, dest, buf);
+	}
+
+	void map_packetFromServer(int source, int dest, const QByteArray &buf)
+	{
+		packetFromServer(source, dest, buf);
+	}
+
 private:
 	void sendPackets()
 	{
@@ -569,14 +626,15 @@ private:
 		}
 	}
 
+	bool virtClient, virtServer;
 	QValueList<Packet> cpackets;
 	Client *client, *server;
 	Server local;
 	QValueList<QUrl> urls;
 	QString shost;
 	int sport;
-	bool mangle;
 	PortMapper mapper;
+	bool lastWasSetup;
 };
 
 //----------------------------------------------------------------------------
@@ -620,10 +678,6 @@ int RTSPProxy::startIncoming(const QStringList &urls, const QString &serverHost,
 		return -1;
 	}
 	// TODO: add session to a list or something
-}
-
-int RTSPProxy::startExisting(const QStringList &urls, ByteStream *client, ByteStream *server)
-{
 }
 
 int RTSPProxy::startExisting(const QStringList &urls, ByteStream *client, const QString &serverHost, int serverPort)
