@@ -78,9 +78,15 @@ struct SPCS_VERSION
 
 static int spc_get_version(QByteArray *from, SPCS_VERSION *s)
 {
+	if(from->size() < 1)
+		return 0;
+	if(from->at(0) != 0x05) // only SOCKS5 supported
+		return -1;
 	if(from->size() < 2)
 		return 0;
 	uint num = from->at(1);
+	if(num > 16) // who the heck has over 16 auth methods??
+		return -1;
 	if(from->size() < 2 + num)
 		return 0;
 	QByteArray a = ByteStream::takeArray(from, 2+num);
@@ -508,7 +514,7 @@ void SocksClient::processOutgoing(const QByteArray &block)
 {
 #ifdef PROX_DEBUG
 	// show hex
-	fprintf(stderr, "SocksClient: got { ");
+	fprintf(stderr, "SocksClient: client recv { ");
 	for(int n = 0; n < (int)block.size(); ++n)
 		fprintf(stderr, "%02X ", (unsigned char)block[n]);
 	fprintf(stderr, " } \n");
@@ -600,7 +606,7 @@ void SocksClient::processOutgoing(const QByteArray &block)
 		else if(r == 1) {
 			if(s.cmd != 0x00) {
 #ifdef PROX_DEBUG
-				fprintf(stderr, "SocksClient: << Error >> [%02x]\n", s.cmd);
+				fprintf(stderr, "SocksClient: client << Error >> [%02x]\n", s.cmd);
 #endif
 				reset(true);
 				if(s.cmd == 0x04)
@@ -613,7 +619,7 @@ void SocksClient::processOutgoing(const QByteArray &block)
 			}
 
 #ifdef PROX_DEBUG
-			fprintf(stderr, "SocksClient: << Success >>\n");
+			fprintf(stderr, "SocksClient: client << Success >>\n");
 #endif
 			d->active = true;
 			connected();
@@ -670,7 +676,7 @@ void SocksClient::processIncoming(const QByteArray &block)
 {
 #ifdef PROX_DEBUG
 	// show hex
-	fprintf(stderr, "SocksClient: got { ");
+	fprintf(stderr, "SocksClient: server recv { ");
 	for(int n = 0; n < (int)block.size(); ++n)
 		fprintf(stderr, "%02X ", (unsigned char)block[n]);
 	fprintf(stderr, " } \n");
@@ -803,6 +809,9 @@ void SocksClient::requestGrant(bool b)
 		return;
 	}
 	d->active = true;
+#ifdef PROX_DEBUG
+	fprintf(stderr, "SocksClient: server << Success >>\n");
+#endif
 
 	if(!d->recvBuf.isEmpty()) {
 		appendRead(d->recvBuf);
