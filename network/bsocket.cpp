@@ -113,6 +113,14 @@ void BSocket::connectToServer(const QString &srv, const QString &type)
 	d->srv.resolve(srv, type, "tcp");
 }
 
+int BSocket::socket() const
+{
+	if(d->qsock)
+		return d->qsock->socket();
+	else
+		return -1;
+}
+
 void BSocket::setSocket(int s)
 {
 	reset(true);

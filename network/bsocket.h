@@ -38,6 +38,7 @@ public:
 
 	void connectToHost(const QString &host, Q_UINT16 port);
 	void connectToServer(const QString &srv, const QString &type);
+	int socket() const;
 	void setSocket(int);
 	int state() const;
 
