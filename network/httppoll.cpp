@@ -257,13 +257,21 @@ void HttpPoll::http_result()
 	}
 
 	d->ident = id;
+	bool justNowConnected = false;
+	if(d->state == 1) {
+		d->state = 2;
+		justNowConnected = true;
+	}
+
+	// sync up again soon
+	if(bytesToWrite() > 0 || !d->closing)
+		d->t->start(d->polltime * 1000, true);
 
 	// check for death :)
 	QGuardedPtr<HttpPoll> self = this;
 
 	// connecting
-	if(d->state == 1) {
-		d->state = 2;
+	if(justNowConnected) {
 		connected();
 	}
 	else {
@@ -287,8 +295,7 @@ void HttpPoll::http_result()
 		return;
 
 	if(bytesToWrite() > 0) {
-		if(!d->http.isActive())
-			do_sync();
+		do_sync();
 	}
 	else {
 		if(d->closing) {
@@ -296,9 +303,6 @@ void HttpPoll::http_result()
 			delayedCloseFinished();
 			return;
 		}
-
-		// sync up again soon
-		d->t->start(d->polltime * 1000, true);
 	}
 }
 
@@ -331,6 +335,9 @@ int HttpPoll::tryWrite()
 
 void HttpPoll::do_sync()
 {
+	if(d->http.isActive())
+		return;
+
 	d->t->stop();
 	d->out = takeWrite(0, false);
 
