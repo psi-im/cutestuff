@@ -26,7 +26,31 @@
 // CS_NAMESPACE_BEGIN
 
 class QHostAddress;
+class SocksClient;
 class SocksServer;
+
+class SocksUDP : public QObject
+{
+	Q_OBJECT
+public:
+	~SocksUDP();
+
+	void change(const QString &host, int port);
+	void write(const QByteArray &data);
+
+signals:
+	void packetReady(const QByteArray &data);
+
+private slots:
+	void sn_activated(int);
+
+private:
+	class Private;
+	Private *d;
+
+	friend class SocksClient;
+	SocksUDP(SocksClient *sc, const QString &host, int port);
+};
 
 class SocksClient : public ByteStream
 {
@@ -43,8 +67,7 @@ public:
 
 	// outgoing
 	void setAuth(const QString &user, const QString &pass="");
-	void connectToHost(const QString &proxyHost, int proxyPort, const QString &host, int port);
-	void udpAssociate(const QString &proxyHost, int proxyPort);
+	void connectToHost(const QString &proxyHost, int proxyPort, const QString &host, int port, bool udpMode=false);
 
 	// incoming
 	void chooseMethod(int);
@@ -66,8 +89,9 @@ public:
 	Q_UINT16 peerPort() const;
 
 	// udp
-	QHostAddress udpAddress() const;
+	QString udpAddress() const;
 	Q_UINT16 udpPort() const;
+	SocksUDP *createUDP(const QString &host, int port);
 
 signals:
 	// outgoing
@@ -109,18 +133,22 @@ public:
 	~SocksServer();
 
 	bool isActive() const;
-	bool listen(Q_UINT16 port);
+	bool listen(Q_UINT16 port, bool udp=false);
 	void stop();
 	int port() const;
 	QHostAddress address() const;
 	SocksClient *takeIncoming();
 
+	void writeUDP(const QHostAddress &addr, int port, const QByteArray &data);
+
 signals:
 	void incomingReady();
+	void incomingUDP(const QString &host, int port, const QHostAddress &addr, int sourcePort, const QByteArray &data);
 
 private slots:
 	void connectionReady(int);
 	void connectionError();
+	void sn_activated(int);
 
 private:
 	class Private;
