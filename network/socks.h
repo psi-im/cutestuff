@@ -1,5 +1,5 @@
 /*
- * socksclient.h - SOCKS5 TCP proxy
+ * socks.h - SOCKS5 TCP proxy client/server
  * Copyright (C) 2003  Justin Karneges
  *
  * This library is free software; you can redistribute it and/or
@@ -18,21 +18,34 @@
  *
  */
 
-#ifndef CS_SOCKSCLIENT_H
-#define CS_SOCKSCLIENT_H
+#ifndef CS_SOCKS_H
+#define CS_SOCKS_H
 
+#include<qserversocket.h>
 #include"../util/bytestream.h"
+
+class SocksServer;
 
 class SocksClient : public ByteStream
 {
 	Q_OBJECT
 public:
 	enum Error { ErrConnectionRefused = ErrCustom, ErrHostNotFound, ErrProxyConnect, ErrProxyNeg, ErrProxyAuth };
+	enum Method { AuthNone=0x0001, AuthUsername=0x0002 };
 	SocksClient(QObject *parent=0);
+	SocksClient(int, QObject *parent=0);
 	~SocksClient();
 
+	bool isIncoming() const;
+
+	// outgoing
 	void setAuth(const QString &user, const QString &pass="");
 	void connectToHost(const QString &proxyHost, int proxyPort, const QString &host, int port);
+
+	// incoming
+	void chooseMethod(int);
+	void authGrant(bool);
+	void requestGrant(bool);
 
 	// from ByteStream
 	bool isOpen() const;
@@ -44,6 +57,9 @@ public:
 
 signals:
 	void connected();
+	void incomingMethods(int);
+	void incomingAuth(const QString &user, const QString &pass);
+	void incomingRequest(const QString &host, int port);
 
 private slots:
 	void sock_connected();
@@ -52,13 +68,56 @@ private slots:
 	void sock_readyRead();
 	void sock_bytesWritten(int);
 	void sock_error(int);
+	void serve();
 
 private:
 	class Private;
 	Private *d;
 
+	void init();
 	void reset(bool clear=false);
 	void do_request();
+	void processOutgoing(const QByteArray &);
+	void processIncoming(const QByteArray &);
+	void continueIncoming();
+};
+
+class SocksServer : public QObject
+{
+	Q_OBJECT
+public:
+	SocksServer(QObject *parent=0);
+	~SocksServer();
+
+	bool isActive() const;
+	bool listen(int port);
+	int port() const;
+	SocksClient *takeIncoming();
+
+signals:
+	void incomingReady();
+
+private slots:
+	void connectionReady(int);
+	void connectionError();
+
+private:
+	class Private;
+	Private *d;
+};
+
+class ServSock : public QServerSocket
+{
+	Q_OBJECT
+public:
+	ServSock(int port);
+
+signals:
+	void connectionReady(int);
+
+protected:
+	// reimplemented
+	void newConnection(int);
 };
 
 #endif

@@ -4,7 +4,7 @@
 #include"util/bconsole.h"
 #include"network/bsocket.h"
 #include"network/httpconnect.h"
-#include"network/socksclient.h"
+#include"network/socks.h"
 #include"network/httppoll.h"
 
 #include<stdio.h>
