@@ -46,6 +46,8 @@ public:
 
 signals:
 	void connected();
+	void syncStarted();
+	void syncFinished();
 
 protected:
 	int tryWrite();

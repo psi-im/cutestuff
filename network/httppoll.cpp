@@ -33,10 +33,6 @@
 #include<stdio.h>
 #endif
 
-#ifdef XMPP_TEST
-#include"td.h"
-#endif
-
 #define POLL_KEYS 64
 
 // CS_NAMESPACE_BEGIN
@@ -165,9 +161,11 @@ void HttpPoll::connectToHost(const QString &proxyHost, int proxyPort, const QStr
 	else
 		fprintf(stderr, ", auth {%s,%s}\n", d->user.latin1(), d->pass.latin1());
 #endif
-#ifdef XMPP_TEST
-	TD::msg("HttpPoll: connecting");
-#endif
+	QGuardedPtr<QObject> self = this;
+	syncStarted();
+	if(!self)
+		return;
+
 	d->state = 1;
 	d->http.setAuth(d->user, d->pass);
 	d->http.post(d->host, d->port, d->url, makePacket("0", key, "", QByteArray()), d->use_proxy);
@@ -222,9 +220,12 @@ void HttpPoll::close()
 
 void HttpPoll::http_result()
 {
-#ifdef XMPP_TEST
-	TD::msg("HttpPoll: done");
-#endif
+	// check for death :)
+	QGuardedPtr<QObject> self = this;
+	syncFinished();
+	if(!self)
+		return;
+
 	// get id and packet
 	QString id;
 	QString cookie = d->http.getHeader("Set-Cookie");
@@ -267,9 +268,6 @@ void HttpPoll::http_result()
 	if(bytesToWrite() > 0 || !d->closing)
 		d->t->start(d->polltime * 1000, true);
 
-	// check for death :)
-	QGuardedPtr<HttpPoll> self = this;
-
 	// connecting
 	if(justNowConnected) {
 		connected();
@@ -308,9 +306,6 @@ void HttpPoll::http_result()
 
 void HttpPoll::http_error(int x)
 {
-#ifdef XMPP_TEST
-	TD::msg("HttpPoll: error");
-#endif
 	reset();
 	if(x == HttpProxyPost::ErrConnectionRefused)
 		error(ErrConnectionRefused);
@@ -348,9 +343,12 @@ void HttpPoll::do_sync()
 		resetKey();
 		newkey = getKey(&last);
 	}
-#ifdef XMPP_TEST
-	TD::msg("HttpPoll: syncing");
-#endif
+
+	QGuardedPtr<QObject> self = this;
+	syncStarted();
+	if(!self)
+		return;
+
 	d->http.post(d->host, d->port, d->url, makePacket(d->ident, key, newkey, d->out), d->use_proxy);
 }
 
