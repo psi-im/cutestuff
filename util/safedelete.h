@@ -1,4 +1,5 @@
 #ifndef SAFEDELETE_H
+#define SAFEDELETE_H
 
 #include<qobjectlist.h>
 
