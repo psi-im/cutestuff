@@ -150,7 +150,7 @@ void HttpPoll::connectToHost(const QString &proxyHost, int proxyPort, const QStr
 			d->port = u.port();
 		else
 			d->port = 80;
-		d->url = u.path(false);
+		d->url = u.encodedPathAndQuery();
 		d->use_proxy = false;
 	}
 
