@@ -20,7 +20,7 @@
 
 //! \class NDns ndns.h
 //! \brief Simple DNS resolution using native system calls
-//! 
+//!
 //! This class is to be used when Qt's QDns is not good enough.  Because QDns
 //! does not use threads, it cannot make a system call asyncronously.  Thus,
 //! QDns tries to imitate the behavior of each platform's native behavior, and
@@ -48,6 +48,7 @@
 //! QString ip_address = dns.resultString();
 //! \endcode
 
+#include <qapplication.h>
 #include "ndns.h"
 
 #ifdef Q_OS_UNIX
@@ -60,6 +61,44 @@
 #ifdef Q_WS_WIN
 #include<windows.h>
 #endif
+
+
+//! \if _hide_doc_
+class NDnsWorkerEvent : public QEvent
+{
+public:
+	NDnsWorkerEvent(NDnsWorker *);
+
+	NDnsWorker *worker() const;
+
+private:
+	NDnsWorker *p;
+};
+
+class NDnsWorker : public QThread
+{
+public:
+	NDnsWorker(QObject *, const QCString &);
+
+	bool success;
+	bool cancelled;
+	uint addr;
+	QString addrString;
+
+protected:
+	void run();
+
+private:
+	QCString host;
+	QObject *par;
+};
+//! \endif
+
+static QMutex workerCancelled;
+
+//----------------------------------------------------------------------------
+// NDns
+//----------------------------------------------------------------------------
 
 //! \fn void NDns::resultsReady()
 //! This signal is emitted when the DNS resolution succeeds or fails.
@@ -96,6 +135,12 @@ void NDns::resolve(const QString &host)
 //! \note This will not stop the underlying system call, which must finish before the next lookup will proceed.
 void NDns::stop()
 {
+	if ( worker ) {
+		workerCancelled.lock();
+		worker->cancelled = true;
+		workerCancelled.unlock();
+	}
+
 	worker = 0;
 }
 
@@ -126,29 +171,32 @@ bool NDns::event(QEvent *e)
 {
 	if(e->type() == QEvent::User) {
 		NDnsWorkerEvent *we = (NDnsWorkerEvent *)e;
-		worker->wait();
-		if(worker != we->worker())
-			return true;
+		we->worker()->wait(); // ensure that the thread is terminated
 
-		if(worker->success) {
-			v_result = worker->addr;
-			v_resultString = worker->addrString;
+		if ( worker == we->worker() ) {
+			if(worker->success) {
+				v_result = worker->addr;
+				v_resultString = worker->addrString;
+			}
+			else {
+				v_result = 0;
+				v_resultString = "";
+			}
+
+			emit resultsReady();
 		}
-		else {
-			v_result = 0;
-			v_resultString = "";
-		}
-		delete worker;
+
+		delete we->worker();
 		worker = 0;
-
-		resultsReady();
 
 		return true;
 	}
 	return false;
 }
 
-static QMutex wm;
+//----------------------------------------------------------------------------
+// NDnsWorkerEvent
+//----------------------------------------------------------------------------
 
 NDnsWorkerEvent::NDnsWorkerEvent(NDnsWorker *_p)
 :QEvent(QEvent::User)
@@ -161,36 +209,51 @@ NDnsWorker *NDnsWorkerEvent::worker() const
 	return p;
 }
 
+//----------------------------------------------------------------------------
+// NDnsWorker
+//----------------------------------------------------------------------------
 
 NDnsWorker::NDnsWorker(QObject *_par, const QCString &_host)
 {
-	success = false;
+	success = cancelled = false;
 	par = _par;
 	host = _host;
 }
 
+static QMutex wm;
+
 void NDnsWorker::run()
 {
 	// lock during the gethostbyname call (anything that returns data into a static buffer is obviously not thread-safe)
-	wm.lock();
-	//printf("resolving [%s]\n", host.data());
-	hostent *h;
-	h = gethostbyname(host.data());
-	//printf("done.\n");
-	if(!h) {
-		//printf("error\n");
-		wm.unlock();
+	QMutexLocker locker( &wm );
+
+	workerCancelled.lock();
+	bool cancel = cancelled;
+	workerCancelled.unlock();
+
+	if ( !cancel ) {
+		//qWarning("resolving [%s]", host.data());
+		hostent *h;
+		h = gethostbyname(host.data());
+		//qWarning("done.");
+		if(!h) {
+			//qWarning("error");
+			success = false;
+			QApplication::postEvent(par, new NDnsWorkerEvent(this));
+			return;
+		}
+
+		in_addr a = *((struct in_addr *)h->h_addr_list[0]);
+		addr = ntohl(a.s_addr);
+		addrString = inet_ntoa(a);
+
+		//qWarning("success: [%s]", addrString.latin1());
+		success = true;
+	}
+	else {
+		//qWarning("cancelled.");
 		success = false;
-		QThread::postEvent(par, new NDnsWorkerEvent(this));
-		return;
 	}
 
-	in_addr a = *((struct in_addr *)h->h_addr_list[0]);
-	addr = ntohl(a.s_addr);
-	addrString = inet_ntoa(a);
-
-	//printf("success: [%s]\n", addrString.latin1());
-	wm.unlock();
-	success = true;
-	QThread::postEvent(par, new NDnsWorkerEvent(this));
+	QApplication::postEvent(par, new NDnsWorkerEvent(this));
 }

@@ -55,35 +55,4 @@ private:
 	NDnsWorker *worker;
 };
 
-
-//! \if _hide_doc_
-class NDnsWorkerEvent : public QEvent
-{
-public:
-	NDnsWorkerEvent(NDnsWorker *);
-
-	NDnsWorker *worker() const;
-
-private:
-	NDnsWorker *p;
-};
-
-class NDnsWorker : public QThread
-{
-public:
-	NDnsWorker(QObject *, const QCString &);
-
-	bool success;
-	uint addr;
-	QString addrString;
-
-protected:
-	void run();
-
-private:
-	QCString host;
-	QObject *par;
-};
-//! \endif
-
 #endif
