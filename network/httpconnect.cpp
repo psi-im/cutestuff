@@ -203,6 +203,7 @@ void HttpConnect::sock_connected()
 		QString str = d->user + ':' + d->pass;
 		s += QString("Proxy-Authorization: Basic ") + Base64::encodeString(str) + "\r\n";
 	}
+	s += "Pragma: no-cache\r\n";
 	s += "\r\n";
 
 	QCString cs = s.utf8();

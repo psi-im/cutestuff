@@ -536,7 +536,6 @@ void HttpProxyPost::sock_connected()
 			QString str = d->user + ':' + d->pass;
 			s += QString("Proxy-Authorization: Basic ") + Base64::encodeString(str) + "\r\n";
 		}
-		s += "Proxy-Connection: Keep-Alive\r\n";
 		s += "Pragma: no-cache\r\n";
 		s += QString("Host: ") + u.host() + "\r\n";
 	}
